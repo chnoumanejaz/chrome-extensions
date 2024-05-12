@@ -4,47 +4,98 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Currency Converter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet" />
+
     <link
       href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
       rel="stylesheet" />
+
+    <style>
+      .font-montserrat {
+        font-family: 'Montserrat', sans-serif;
+        font-optical-sizing: auto;
+      }
+      .dark {
+        background-color: #11151d;
+        color: #ffffff;
+      }
+      .dark div,
+      .dark select,
+      .dark input {
+        background-color: #1a202c;
+        color: #f2f2f2;
+      }
+
+      .dark #result {
+        color: #f2f2f2 !important;
+      }
+    </style>
   </head>
 
-  <body class="bg-gray-100 p-6">
-    <div class="max-w-md mx-auto bg-white rounded-md shadow-md p-6">
-      <h1 class="text-2xl font-semibold mb-4">Currency Converter</h1>
-      <div class="flex items-center mb-4">
-        <label for="amount" class="mr-2">Amount:</label>
+  <body class="font-montserrat bg-gray-100 px-6 pb-6 rounded-3xl">
+    <button
+      id="toggleModeBtn"
+      class="bg-green-500 text-white px-2 py-1 m-2 w-full opacity-70 rounded-md">
+      Go Light
+    </button>
+    <div
+      class="max-w-md mx-auto bg-white dark:bg-red-500 rounded-md shadow-md p-6">
+      <h1
+        class="text-2xl font-bold text-center text-green-700 whitespace-nowrap">
+        Currency Converter
+      </h1>
+
+      <p class="text-gray-500 text-center mb-6">
+        by
+        <a
+          href="https://www.linkedin.com/in/chnoumanejaz/"
+          target="_blank"
+          class="text-green-500 hover:underline font-medium"
+          >Nouman Ejaz</a
+        >
+      </p>
+
+      <div class="grid grid-cols-2 gap-4 w-full">
+        <div>
+          <label for="fromCurrency">From:</label>
+          <select
+            id="fromCurrency"
+            class="border border-green-300 rounded-md px-2 py-2 w-full">
+            <option value="USD">U.S. Dollar</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="toCurrency">To:</label>
+          <select
+            id="toCurrency"
+            class="border border-green-300 rounded-md px-2 py-2 w-full">
+            <option value="pkr">Pakistani Rupee (PKR)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="my-5">
+        <label for="amount">Amount:</label>
         <input
           type="number"
           id="amount"
-          class="border border-gray-300 rounded-md px-2 py-1 flex-1" />
+          min="1"
+          autofocus
+          placeholder="Enter amount..."
+          class="border border-green-300 rounded-md px-2 py-2 w-full" />
       </div>
-      <div class="flex items-center mb-4">
-        <label for="fromCurrency" class="mr-2">From:</label>
-        <select
-          id="fromCurrency"
-          class="border border-gray-300 rounded-md px-2 py-1 flex-1">
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-          <option value="GBP">GBP</option>
-        </select>
-      </div>
-      <div class="flex items-center mb-4">
-        <label for="toCurrency" class="mr-2">To:</label>
-        <select
-          id="toCurrency"
-          class="border border-gray-300 rounded-md px-2 py-1 flex-1">
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-          <option value="GBP">GBP</option>
-        </select>
-      </div>
+
       <button
         id="convertBtn"
-        class="bg-blue-500 text-white px-4 py-2 rounded-md">
-        Convert
+        class="bg-green-500 text-white px-4 py-2 rounded-md w-full font-semibold hover:bg-green-700 transition">
+        Convert Currency
       </button>
-      <div id="result" class="mt-4"></div>
+      <div id="result" class="mt-4 text-base"></div>
     </div>
 
     <script src="popup.js"></script>
