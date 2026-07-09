@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FormPilot</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <header class="popup-header">
+        <h1>FormPilot</h1>
+        <p class="subtitle">Save and refill forms locally</p>
+      </header>
+
+      <section class="stats">
+        <div class="stat">
+          <span class="stat-value" id="form-count">0</span>
+          <span class="stat-label">Forms saved</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="preset-count">0</span>
+          <span class="stat-label">Presets saved</span>
+        </div>
+      </section>
+
+      <p class="privacy">
+        All saved data stays locally in your browser. No backend, no analytics, no external tracking.
+      </p>
+
+      <div class="actions">
+        <button id="open-options" class="btn btn-primary" type="button">Manage saved data</button>
+        <button id="open-test" class="btn btn-secondary" type="button">Open test page</button>
+      </div>
+    </main>
+
+    <script src="../shared/storage.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

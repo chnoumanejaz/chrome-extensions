@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FormPilot Options</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="options">
+      <header class="options-header">
+        <h1>FormPilot Settings</h1>
+        <p class="privacy">
+          All saved data stays locally in your browser. Avoid saving sensitive passwords, payment cards, or private personal data.
+        </p>
+      </header>
+
+      <section class="toolbar">
+        <button id="clear-all" class="btn btn-danger" type="button">Clear all data</button>
+      </section>
+
+      <section id="forms-container" class="forms-container">
+        <p class="empty-state">Loading saved forms...</p>
+      </section>
+    </main>
+
+    <script src="../shared/storage.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

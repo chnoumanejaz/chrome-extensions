@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "FormPilot",
+  "version": "1.0.0",
+  "description": "Save and refill form data locally on any website.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://*/*", "https://*/*", "http://localhost/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*", "http://localhost/*"],
+      "js": [
+        "content/fingerprint.js",
+        "content/detector.js",
+        "content/autofill.js",
+        "content/content.js"
+      ],
+      "css": ["content/floating-button.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/floating-button.css", "test/sample-forms.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
