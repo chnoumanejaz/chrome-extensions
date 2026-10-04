@@ -1,0 +1,15 @@
+{
+  "name": "bug-detector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension that captures bug reports: screenshot, console errors, failed API calls and user steps.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/unit/*.test.mjs\"",
+    "test:e2e": "node test/e2e.smoke.mjs",
+    "serve": "node test/server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

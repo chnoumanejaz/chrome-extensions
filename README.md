@@ -3,6 +3,9 @@
 1. **Currency Converter Chrome Extension**
    This is a simple Chrome extension that allows users to convert currencies directly from their browser.
 
+2. **[BugDetector](BugDetector/README.md)**
+   Captures a ready-to-paste bug report with one shortcut (Alt+Shift+B) or automatically when something breaks. The report includes a screenshot, console errors, failed API requests and responses, and the steps before the bug. Copy it as Markdown, Slack, plain text, JSON, or an AI prompt.
+
 ## How to Use these extension
 
 1. **Installation**

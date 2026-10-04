@@ -1,0 +1,40 @@
+body { width: 340px; background: var(--surface); }
+
+.popup { display: grid; gap: 14px; padding: 14px 16px 16px; }
+
+.header { display: flex; align-items: center; justify-content: space-between; }
+
+.page {
+  display: grid; gap: 8px; padding: 12px;
+  border-radius: var(--radius); background: var(--surface-2);
+}
+.host { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.stats:empty { display: none; }
+.page .notice { margin: 0; }
+
+.capture { display: grid; gap: 8px; }
+.shortcut { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.linklike {
+  border: 0; padding: 0; background: none; color: var(--accent);
+  font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.error { margin: 0; color: var(--accent); text-align: center; }
+
+.settings { display: grid; gap: 2px; border-top: 1px solid var(--border); padding-top: 8px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
+.row label { font-size: 13px; }
+select.compact { width: auto; max-width: 190px; padding: 5px 8px; font-size: 12px; }
+
+.recent { border-top: 1px solid var(--border); padding-top: 10px; }
+.recent h2 { font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.recent ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.recent li button {
+  width: 100%; display: grid; gap: 1px; text-align: left; padding: 7px 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--fg);
+  font: inherit; cursor: pointer;
+}
+.recent li button:hover { background: var(--surface-2); }
+.recent .title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent .meta { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent .empty { font-size: 12px; color: var(--muted); padding: 4px 0; }

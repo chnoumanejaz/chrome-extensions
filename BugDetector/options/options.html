@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BugDetector settings</title>
+  <link rel="icon" href="../icons/icon32.png">
+  <link rel="stylesheet" href="../ui/theme.css">
+  <link rel="stylesheet" href="options.css">
+  <script type="module" src="options.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="../icons/icon48.png" alt=""> BugDetector settings</div>
+    <span class="small muted" id="save-state" role="status" aria-live="polite"></span>
+  </header>
+
+  <main class="page">
+    <section class="card pad">
+      <h2>Capture</h2>
+      <div class="field row">
+        <div>
+          <div class="label">Keyboard shortcut</div>
+          <p class="help">Captures a report for the current tab from anywhere on the page.</p>
+        </div>
+        <div class="inline">
+          <kbd id="shortcut">…</kbd>
+          <button class="btn" id="change-shortcut" type="button">Change</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h2>Auto-detection</h2>
+      <div class="field row">
+        <div>
+          <label for="autoDetect" class="label">Show a popup when a bug happens</label>
+          <p class="help">You can still capture manually when this is off.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="autoDetect" data-setting="autoDetect"><span></span></label>
+      </div>
+      <div class="field">
+        <label for="sensitivity" class="label">Alert me on</label>
+        <select id="sensitivity" data-setting="sensitivity">
+          <option value="errors">Errors only (uncaught errors, rejected promises, console.error)</option>
+          <option value="errors+network">Errors + failed requests (4xx/5xx, network failures)</option>
+          <option value="all">Everything, including console warnings</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="cooldownSeconds" class="label">Quiet period after dismissing (seconds)</label>
+        <input type="number" id="cooldownSeconds" min="0" max="3600" data-setting="cooldownSeconds">
+      </div>
+      <div class="field">
+        <label for="ignoreMessagePatterns" class="label">Ignore messages containing</label>
+        <p class="help">One per line. Matching console messages and errors are never recorded.</p>
+        <textarea id="ignoreMessagePatterns" class="mono" data-setting="ignoreMessagePatterns" data-list></textarea>
+      </div>
+      <div class="field">
+        <label for="ignoreUrlPatterns" class="label">Ignore requests to URLs containing</label>
+        <p class="help">One per line. Useful for analytics and tracking scripts that fail when blocked.</p>
+        <textarea id="ignoreUrlPatterns" class="mono" data-setting="ignoreUrlPatterns" data-list></textarea>
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h2>Sites</h2>
+      <div class="field">
+        <span class="label">Run BugDetector on</span>
+        <div class="radio-group" role="radiogroup">
+          <label><input type="radio" name="siteMode" value="all" data-setting="siteMode"> All sites, except the blocklist</label>
+          <label><input type="radio" name="siteMode" value="allowlist" data-setting="siteMode"> Only the sites in the allowlist</label>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field" id="allowlist-field">
+          <label for="allowlist" class="label">Allowlist</label>
+          <p class="help">One host per line. <code>example.com</code> includes subdomains, <code>localhost:3000</code> matches one port.</p>
+          <textarea id="allowlist" class="mono" data-setting="allowlist" data-list></textarea>
+        </div>
+        <div class="field" id="blocklist-field">
+          <label for="blocklist" class="label">Blocklist</label>
+          <p class="help">Nothing is collected on these sites.</p>
+          <textarea id="blocklist" class="mono" data-setting="blocklist" data-list></textarea>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mutedSites" class="label">Muted sites</label>
+        <p class="help">Errors are still collected for manual capture, but the popup never appears.</p>
+        <textarea id="mutedSites" class="mono" data-setting="mutedSites" data-list></textarea>
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h2>Privacy</h2>
+      <p class="help">Redaction runs before a report is saved, so secrets never reach storage or your clipboard. Bearer tokens and JWTs are always masked.</p>
+      <div class="grid-2">
+        <div class="field">
+          <label for="redactHeaders" class="label">Headers to redact</label>
+          <textarea id="redactHeaders" class="mono" data-setting="redactHeaders" data-list></textarea>
+        </div>
+        <div class="field">
+          <label for="redactKeys" class="label">Mask JSON keys / params containing</label>
+          <textarea id="redactKeys" class="mono" data-setting="redactKeys" data-list></textarea>
+        </div>
+      </div>
+      <div class="field row">
+        <label for="maskEmails" class="label">Mask email addresses</label>
+        <label class="switch"><input type="checkbox" id="maskEmails" data-setting="maskEmails"><span></span></label>
+      </div>
+      <div class="field">
+        <label for="maxBodyChars" class="label">Max characters per request/response body</label>
+        <input type="number" id="maxBodyChars" min="200" max="100000" step="100" data-setting="maxBodyChars">
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h2>Saved reports</h2>
+      <div class="field">
+        <label for="maxReports" class="label">Keep the most recent</label>
+        <input type="number" id="maxReports" min="1" max="200" data-setting="maxReports">
+      </div>
+      <div class="field row">
+        <p class="help" id="report-count">Reports are stored only in this browser.</p>
+        <button class="btn btn-danger" id="clear-reports" type="button">Delete all reports</button>
+      </div>
+    </section>
+
+    <div class="footer">
+      <button class="btn btn-ghost" id="reset" type="button">Reset all settings to defaults</button>
+    </div>
+  </main>
+</body>
+</html>
