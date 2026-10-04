@@ -101,3 +101,23 @@ test("redactReport redacts before truncating and covers every section", () => {
   assert.ok(out.network[0].requestBody.includes("[truncated"));
   assert.equal(report.network[0].requestHeaders.authorization, "Bearer zzz", "input not mutated");
 });
+
+test("redactReport covers the picked element", () => {
+  const report = {
+    page: { url: "https://app.test/", referrer: null, title: "" },
+    console: [], network: [], breadcrumbs: [],
+    element: {
+      selector: "#reset",
+      text: "Reset for ada@example.com",
+      html: '<a href="/reset?token=abc123" data-jwt="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U">Reset</a>',
+      attributes: { href: "https://app.test/reset?token=abc123", title: "Bearer abcdefghijkl" },
+      issues: []
+    }
+  };
+  const out = redactReport(report, { ...settings, maskEmails: true });
+  assert.equal(out.element.text, "Reset for [EMAIL]");
+  assert.equal(out.element.attributes.href, `https://app.test/reset?token=${REDACTED}`);
+  assert.equal(out.element.attributes.title, `Bearer ${REDACTED}`);
+  assert.ok(!out.element.html.includes("eyJhbGci"));
+  assert.ok(!out.element.html.includes("abc123"));
+});

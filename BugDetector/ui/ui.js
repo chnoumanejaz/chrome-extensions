@@ -59,10 +59,10 @@ export function timeAgo(ts, now = Date.now()) {
   return days === 1 ? "yesterday" : `${days} days ago`;
 }
 
-/** The capture shortcut as configured at chrome://extensions/shortcuts ("" when unset). */
-export async function getCaptureShortcut() {
+/** A command's shortcut as configured at chrome://extensions/shortcuts ("" when unset). */
+export async function getShortcut(name) {
   const commands = await chrome.commands.getAll();
-  return commands.find((command) => command.name === "capture-bug")?.shortcut || "";
+  return commands.find((command) => command.name === name)?.shortcut || "";
 }
 
 export function openShortcutSettings() {

@@ -23,12 +23,16 @@
     input { padding: 8px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); font: inherit; }
     #log { font: 12px ui-monospace, monospace; white-space: pre-wrap; opacity: 0.7; }
     .images img { width: 1px; height: 1px; }
+    .stage { position: relative; display: inline-block; }
+    /* An invisible overlay left behind by a closed modal: it swallows clicks on the button below. */
+    .ghost-overlay { position: absolute; inset: -8px; z-index: 10; opacity: 0; background: #000; }
+    #pay-now { background: #16a34a; color: #fff; border-color: #16a34a; }
   </style>
 </head>
 <body>
   <main>
     <h1>🐞 BugDetector Playground</h1>
-    <p>Each button triggers a different kind of bug. Watch for the “Bug detected” popup, then press the capture shortcut (default <kbd>Alt+Shift+B</kbd>).</p>
+    <p>Each button triggers a different kind of bug. Watch for the “Bug detected” popup, then press the capture shortcut (default <kbd>Alt+Shift+D</kbd>), or use “Select broken element” (<kbd>Alt+Shift+E</kbd>).</p>
 
     <section>
       <h2>JavaScript errors</h2>
@@ -61,6 +65,15 @@
     </section>
 
     <section>
+      <h2>Broken UI (use “Select broken element”)</h2>
+      <p>The button below does nothing because an invisible overlay covers it.</p>
+      <div class="stage">
+        <button id="pay-now" type="button">Pay now</button>
+        <div class="ghost-overlay" data-testid="ghost-overlay"></div>
+      </div>
+    </section>
+
+    <section>
       <h2>A realistic flow</h2>
       <form id="checkout">
         <label>Email <input name="email" type="email" placeholder="you@example.com"></label>
@@ -75,6 +88,8 @@
   <script>
     const log = (text) => { document.getElementById("log").textContent += `${text}\n`; };
     const on = (id, fn) => document.getElementById(id).addEventListener("click", fn);
+
+    on("pay-now", () => log("Paid!"));
 
     on("throw-error", () => {
       setTimeout(() => {

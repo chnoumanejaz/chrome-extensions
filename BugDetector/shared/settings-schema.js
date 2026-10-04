@@ -9,6 +9,10 @@
 
   const SENSITIVITY = Object.freeze(["errors", "errors+network", "all"]);
   const SITE_MODES = Object.freeze(["all", "allowlist"]);
+  const AI_MODELS = Object.freeze([
+    Object.freeze({ id: "claude-opus-5-5", name: "Claude Opus 5.5", hint: "most capable" }),
+    Object.freeze({ id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5", hint: "faster, cheaper" })
+  ]);
 
   const DEFAULTS = Object.freeze({
     /** Show the "Bug detected" toast automatically. */
@@ -64,7 +68,11 @@
     /** Request/response bodies are truncated to this many characters. */
     maxBodyChars: 4000,
     /** Saved reports kept in IndexedDB (oldest pruned first). */
-    maxReports: 20
+    maxReports: 20,
+    /** Model used for AI triage (the API key itself lives in chrome.storage.local). */
+    aiModel: "claude-opus-5-5",
+    /** Send the (annotated, blurred) screenshot along with the report. */
+    aiIncludeScreenshot: true
   });
 
   const NUMBER_RANGES = Object.freeze({
@@ -73,7 +81,7 @@
     maxReports: [1, 200]
   });
 
-  const ENUMS = Object.freeze({ sensitivity: SENSITIVITY, siteMode: SITE_MODES });
+  const ENUMS = Object.freeze({ sensitivity: SENSITIVITY, siteMode: SITE_MODES, aiModel: AI_MODELS.map((model) => model.id) });
 
   function cleanList(list) {
     const seen = new Set();
@@ -119,6 +127,7 @@
     DEFAULTS,
     SENSITIVITY,
     SITE_MODES,
+    AI_MODELS,
     normalize
   });
 })();

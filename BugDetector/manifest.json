@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BugDetector",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Capture bugs in one shortcut: screenshot, console errors, failed API calls and user steps as a ready-to-paste report.",
   "minimum_chrome_version": "111",
   "permissions": ["storage", "scripting", "webRequest", "unlimitedStorage"],
@@ -33,10 +33,17 @@
   "commands": {
     "capture-bug": {
       "suggested_key": {
-        "default": "Alt+Shift+B",
-        "mac": "Alt+Shift+B"
+        "default": "Alt+Shift+D",
+        "mac": "Alt+Shift+D"
       },
       "description": "Capture a bug report for the current tab"
+    },
+    "pick-element": {
+      "suggested_key": {
+        "default": "Alt+Shift+E",
+        "mac": "Alt+Shift+E"
+      },
+      "description": "Select the broken element, then capture a report"
     }
   },
   "content_scripts": [
@@ -54,6 +61,8 @@
         "shared/site-match.js",
         "shared/ring-buffer.js",
         "content/toast.js",
+        "content/element-inspector.js",
+        "content/picker.js",
         "content/collector.js"
       ],
       "run_at": "document_start"

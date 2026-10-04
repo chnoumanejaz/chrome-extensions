@@ -128,6 +128,25 @@ export function suggestTitle(report) {
 }
 
 /**
+ * A box around the picked element, in screenshot pixels (captureVisibleTab
+ * captures at devicePixelRatio). Returned as an editable annotation.
+ */
+export function elementAnnotations(element) {
+  if (!element?.rect || !element.rect.width || !element.rect.height) return [];
+  const dpr = element.devicePixelRatio || 1;
+  const pad = 4 * dpr;
+  const { x, y, width, height } = element.rect;
+  return [{
+    type: "box",
+    color: "#e5484d",
+    x1: Math.round(x * dpr - pad),
+    y1: Math.round(y * dpr - pad),
+    x2: Math.round((x + width) * dpr + pad),
+    y2: Math.round((y + height) * dpr + pad)
+  }];
+}
+
+/**
  * @param {object} input
  * @param {string} input.id
  * @param {number} input.createdAt              epoch ms
@@ -177,6 +196,9 @@ export function buildReport({ id, createdAt, tab, snapshot, webRequests, setting
       ignoreUrlPatterns: settings.ignoreUrlPatterns
     }),
     breadcrumbs: snapshot?.breadcrumbs || [],
+    element: snapshot?.element || null,
+    annotations: hasScreenshot ? elementAnnotations(snapshot?.element) : [],
+    triage: null,
     warnings: notes,
     hasScreenshot
   };

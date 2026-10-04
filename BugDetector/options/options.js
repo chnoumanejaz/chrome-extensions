@@ -1,8 +1,15 @@
-import { getSettings, updateSettings, resetSettings, onSettingsChanged } from "../lib/settings.js";
+import { getSettings, updateSettings, resetSettings, onSettingsChanged, getApiKey, setApiKey } from "../lib/settings.js";
+import { AI_MODELS, testApiKey } from "../lib/ai-triage.js";
 import { listReports, clearReports } from "../lib/report-store.js";
-import { $, debounce, getCaptureShortcut, openShortcutSettings } from "../ui/ui.js";
+import { $, debounce, getShortcut, openShortcutSettings } from "../ui/ui.js";
 
 const saveState = $("#save-state");
+
+// Options are generated from the schema so the list can't drift.
+for (const model of AI_MODELS) {
+  $("#aiModel").append(new Option(`${model.name} (${model.hint})`, model.id));
+}
+
 const fields = [...document.querySelectorAll("[data-setting]")];
 
 function readField(el) {
@@ -82,7 +89,64 @@ $("#clear-reports").addEventListener("click", async () => {
   flash("Reports deleted");
 });
 
+// ----------------------------------------------------------- API key
+
+const apiKeyInput = $("#api-key");
+const apiKeyStatus = $("#api-key-status");
+
+function keyStatus(text, tone = "") {
+  apiKeyStatus.textContent = text;
+  apiKeyStatus.className = `small ${tone}`;
+}
+
+async function renderApiKey() {
+  const key = await getApiKey();
+  apiKeyInput.value = key;
+  $("#api-key-remove").disabled = !key;
+  $("#api-key-test").disabled = !key;
+  keyStatus(key ? "Key saved." : "No key saved.");
+}
+
+$("#api-key-toggle").addEventListener("click", (event) => {
+  const show = apiKeyInput.type === "password";
+  apiKeyInput.type = show ? "text" : "password";
+  event.currentTarget.textContent = show ? "Hide" : "Show";
+  event.currentTarget.setAttribute("aria-pressed", String(show));
+});
+
+$("#api-key-save").addEventListener("click", async () => {
+  const key = apiKeyInput.value.trim();
+  if (key && !key.startsWith("sk-ant-")) {
+    keyStatus("That doesn't look like a Claude API key (they start with sk-ant-).", "bad");
+    return;
+  }
+  await setApiKey(key);
+  await renderApiKey();
+  if (key) keyStatus("Key saved.", "ok");
+});
+
+$("#api-key-remove").addEventListener("click", async () => {
+  await setApiKey("");
+  await renderApiKey();
+});
+
+$("#api-key-test").addEventListener("click", async () => {
+  const key = await getApiKey();
+  if (!key) return;
+  keyStatus("Testing…");
+  const { createClaudeClient, describeClaudeError } = await import("../lib/claude-client.js");
+  try {
+    const { aiModel } = await getSettings();
+    const servedBy = await testApiKey(createClaudeClient(key), aiModel);
+    keyStatus(`Key works (${servedBy}).`, "ok");
+  } catch (error) {
+    keyStatus(describeClaudeError(error), "bad");
+  }
+});
+
+renderApiKey();
 onSettingsChanged(render);
-getCaptureShortcut().then((shortcut) => { $("#shortcut").textContent = shortcut || "Not set"; });
+getShortcut("capture-bug").then((shortcut) => { $("#shortcut").textContent = shortcut || "Not set"; });
+getShortcut("pick-element").then((shortcut) => { $("#pick-shortcut").textContent = shortcut || "Not set"; });
 render(await getSettings());
 renderReportCount();

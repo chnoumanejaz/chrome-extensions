@@ -11,11 +11,25 @@ const BADGE_COLOR = "#e5484d";
 
 startNetworkMonitor();
 
-chrome.commands.onCommand.addListener((command, tab) => {
-  if (command !== "capture-bug") return;
-  if (tab) captureTab(tab);
-  else captureActiveTab();
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command === "capture-bug") {
+    if (tab) captureTab(tab);
+    else captureActiveTab();
+  } else if (command === "pick-element") {
+    const target = tab || (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+    if (target?.id) startPicker(target.id);
+  }
 });
+
+/** Starts the element picker in a tab; the collector requests the capture once picked. */
+async function startPicker(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: Msg.START_PICKER }, { frameId: 0 });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "BugDetector isn't running on this page. Reload it and try again." };
+  }
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
@@ -25,6 +39,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         ? chrome.tabs.get(message.tabId).then(captureTab)
         : captureTab(sender.tab);
       job.then(sendResponse, (error) => sendResponse({ ok: false, error: String(error?.message || error) }));
+      return true;
+    }
+
+    case Msg.START_PICKER: {
+      startPicker(message.tabId).then(sendResponse);
       return true;
     }
 
@@ -76,4 +95,4 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Handy for debugging from the service worker console and used by the e2e test.
-globalThis.BugDetector = Object.freeze({ captureTab, captureActiveTab });
+globalThis.BugDetector = Object.freeze({ captureTab, captureActiveTab, startPicker });

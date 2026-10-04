@@ -7,6 +7,7 @@ export const SENSITIVITY_OPTIONS = Schema.SENSITIVITY;
 export const normalizeSettings = Schema.normalize;
 
 const KEY = Schema.STORAGE_KEY;
+const API_KEY = "anthropicApiKey";
 
 /** @returns {Promise<typeof DEFAULT_SETTINGS>} */
 export async function getSettings() {
@@ -38,4 +39,22 @@ export function onSettingsChanged(listener) {
   };
   chrome.storage.onChanged.addListener(handler);
   return () => chrome.storage.onChanged.removeListener(handler);
+}
+
+/*
+ * The Claude API key is kept in chrome.storage.local (this device only),
+ * never in chrome.storage.sync with the other settings.
+ */
+
+/** @returns {Promise<string>} "" when not set */
+export async function getApiKey() {
+  const stored = await chrome.storage.local.get(API_KEY);
+  return typeof stored[API_KEY] === "string" ? stored[API_KEY] : "";
+}
+
+export async function setApiKey(value) {
+  const key = String(value || "").trim();
+  if (key) await chrome.storage.local.set({ [API_KEY]: key });
+  else await chrome.storage.local.remove(API_KEY);
+  return key;
 }

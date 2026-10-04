@@ -138,6 +138,15 @@ kbd {
   font-size: 11px; line-height: 1.5;
 }
 
+.linklike {
+  border: 0; padding: 0; background: none; color: var(--accent);
+  font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.error { margin: 0; color: var(--accent); }
+.btn-sm { min-height: 28px; padding: 3px 10px; font-size: 12px; }
+.check { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
+.check input { accent-color: var(--accent); margin: 0; }
+
 .notice {
   padding: 10px 12px; border-radius: var(--radius);
   background: var(--warning-soft); color: var(--warning); font-size: 13px;

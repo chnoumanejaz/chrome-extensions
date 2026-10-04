@@ -105,6 +105,7 @@
       <div class="detail"></div>
       <div class="actions">
         <button class="primary" type="button">Capture bug</button>
+        <button class="link pick" type="button" title="Click the element that's broken to include it in the report">Pick element</button>
         <button class="link mute" type="button" title="Keep collecting data, but don't show this popup on this site">Mute site</button>
       </div>`;
     shadow.append(toast);
@@ -119,6 +120,7 @@
 
     parts.capture.addEventListener("click", () => handlers.onCapture?.());
     parts.mute.addEventListener("click", () => handlers.onMute?.());
+    toast.querySelector(".pick").addEventListener("click", () => handlers.onPick?.());
     toast.querySelector(".close").addEventListener("click", () => {
       hide();
       handlers.onDismiss?.();
@@ -142,8 +144,8 @@
   }
 
   /**
-   * @param {{ detail: string, count: number,
-   *           onCapture: Function, onDismiss: Function, onMute: Function }} options
+   * @param {{ detail: string, count: number, onCapture: Function,
+   *           onPick: Function, onDismiss: Function, onMute: Function }} options
    */
   function show(options) {
     mount();

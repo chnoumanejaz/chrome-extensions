@@ -102,3 +102,23 @@ test("mergeNetwork explains network failures with the browser's error code", () 
   assert.equal(entry.initiator, "fetch");
   assert.equal(entry.error, "TypeError: Failed to fetch (net::ERR_CONNECTION_REFUSED)");
 });
+
+test("buildReport keeps the picked element and pre-annotates it in screenshot pixels", async () => {
+  const { elementAnnotations } = await import("../../lib/report-model.js");
+  const element = { selector: "#x", rect: { x: 10, y: 20, width: 100, height: 30 }, devicePixelRatio: 2 };
+  assert.deepEqual(elementAnnotations(element), [{ type: "box", color: "#e5484d", x1: 12, y1: 32, x2: 228, y2: 108 }]);
+  assert.deepEqual(elementAnnotations({ rect: { x: 0, y: 0, width: 0, height: 10 } }), []);
+  assert.deepEqual(elementAnnotations(null), []);
+
+  const snapshot = {
+    siteEnabled: true,
+    page: { url: "https://x.test/", title: "X", referrer: null, timeOrigin: 0, loadTimeMs: null },
+    env: {}, console: [], network: [], breadcrumbs: [], element
+  };
+  const base = { id: "r", createdAt: 1, tab: {}, snapshot, webRequests: [], settings: { ignoreUrlPatterns: [] } };
+  const withShot = buildReport({ ...base, hasScreenshot: true });
+  assert.equal(withShot.element.selector, "#x");
+  assert.equal(withShot.annotations.length, 1);
+  assert.equal(withShot.triage, null);
+  assert.deepEqual(buildReport({ ...base, hasScreenshot: false }).annotations, []);
+});

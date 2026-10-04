@@ -15,6 +15,8 @@
   const Sites = globalThis.BugDetectorSites;
   const RingBuffer = globalThis.BugDetectorRingBuffer;
   const Toast = globalThis.BugDetectorToast;
+  const Picker = globalThis.BugDetectorPicker;
+  const Inspector = globalThis.BugDetectorInspector;
 
   const consoleLog = new RingBuffer(50);
   const networkLog = new RingBuffer(50);
@@ -27,6 +29,8 @@
   let unseenSignals = 0;
   let quietUntil = 0;
   let capturing = false;
+  /** Element the user picked; included in the next snapshot only. */
+  let pendingElement = null;
   let badgeTimer = 0;
 
   // ------------------------------------------------------------- lifecycle
@@ -288,6 +292,7 @@
       detail: summary,
       count: unseenSignals,
       onCapture: requestCapture,
+      onPick: startPicker,
       onDismiss: () => {
         unseenSignals = 0;
         quietUntil = Date.now() + settings.cooldownSeconds * 1000;
@@ -303,6 +308,23 @@
       Toast.setBusy("Capture failed");
       setTimeout(() => Toast.hide(), 2000);
     }
+  }
+
+  function startPicker() {
+    if (Picker.isActive()) return;
+    Toast.hide();
+    Picker.start({
+      onPick: (el) => {
+        try {
+          pendingElement = Inspector.inspect(el);
+        } catch (error) {
+          pendingElement = null;
+          console.warn("BugDetector: could not inspect element", error);
+        }
+        crumb("pick", `Marked ${describeElement(el)} as the broken element`);
+        send({ type: Msg.CAPTURE_REQUEST });
+      }
+    });
   }
 
   async function muteSite() {
@@ -324,6 +346,12 @@
       requestAnimationFrame(() => requestAnimationFrame(done));
       setTimeout(done, 100); // rAF doesn't fire in some hidden/headless states
     });
+  }
+
+  function takePendingElement() {
+    const element = pendingElement;
+    pendingElement = null;
+    return element;
   }
 
   function snapshot() {
@@ -354,7 +382,8 @@
       stats: { ...stats },
       console: site.enabled ? consoleLog.toArray() : [],
       network: site.enabled ? networkLog.toArray() : [],
-      breadcrumbs: site.enabled ? breadcrumbs.toArray() : []
+      breadcrumbs: site.enabled ? breadcrumbs.toArray() : [],
+      element: takePendingElement()
     };
   }
 
@@ -372,6 +401,11 @@
         capturing = false;
         unseenSignals = 0;
         quietUntil = Date.now() + settings.cooldownSeconds * 1000;
+        sendResponse(true);
+        return false;
+
+      case Msg.START_PICKER:
+        startPicker();
         sendResponse(true);
         return false;
 

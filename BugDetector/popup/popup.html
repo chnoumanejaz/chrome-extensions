@@ -28,8 +28,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.9 1.9M16 2l-1.9 1.9M9 7.1V6a3 3 0 0 1 6 0v1.1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9"/><path d="M6.5 13H3M21 13h-3.5M6 9.5L3.5 8M18 9.5L20.5 8M6.5 17L4 19M17.5 17L20 19"/></svg>
         <span id="capture-label">Capture bug</span>
       </button>
+      <button class="btn btn-block" id="pick" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l7 17 2.5-7.5L21 11z"/><path d="M14 14l6 6"/></svg>
+        Select broken element
+      </button>
       <div class="shortcut small muted">
-        Shortcut <kbd id="shortcut">…</kbd>
+        <span>Capture <kbd id="shortcut">…</kbd></span>
+        <span>Select <kbd id="pick-shortcut">…</kbd></span>
         <button class="linklike" id="change-shortcut" type="button">Change</button>
       </div>
       <p class="error small" id="capture-error" role="alert" hidden></p>

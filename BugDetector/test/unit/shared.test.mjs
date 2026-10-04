@@ -69,5 +69,12 @@ test("protocol is frozen and complete", () => {
   const { Msg, HOOK_EVENT } = globalThis.BugDetectorProtocol;
   assert.equal(HOOK_EVENT, "bugdetector:event");
   assert.ok(Object.isFrozen(Msg));
-  assert.deepEqual(Object.keys(Msg).sort(), ["BADGE_UPDATE", "CAPTURE_FINISHED", "CAPTURE_REQUEST", "GET_STATS", "PREPARE_CAPTURE"]);
+  assert.deepEqual(Object.keys(Msg).sort(), ["BADGE_UPDATE", "CAPTURE_FINISHED", "CAPTURE_REQUEST", "GET_STATS", "PREPARE_CAPTURE", "START_PICKER"]);
+});
+
+test("AI model setting only accepts known models", () => {
+  assert.equal(Settings.normalize().aiModel, "claude-opus-5-5");
+  assert.equal(Settings.normalize({ aiModel: "claude-sonnet-5-5" }).aiModel, "claude-sonnet-5-5");
+  assert.equal(Settings.normalize({ aiModel: "gpt-4" }).aiModel, "claude-opus-5-5");
+  assert.equal(Settings.normalize({ aiIncludeScreenshot: false }).aiIncludeScreenshot, false);
 });

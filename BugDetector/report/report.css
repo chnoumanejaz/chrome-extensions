@@ -50,11 +50,55 @@ body { min-height: 100vh; }
   background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px;
   display: grid; place-items: center; border-bottom: 1px solid var(--border);
 }
-.shot-frame img { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; }
+.shot-frame canvas { display: block; max-width: 100%; height: auto; max-height: 70vh; touch-action: none; }
+.shot-frame canvas.editing { cursor: crosshair; outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+.annotate-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.tool-group { display: flex; align-items: center; gap: 4px; }
+.tool {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 10px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--fg);
+  font: 500 12px var(--font); cursor: pointer;
+}
+.tool:hover { border-color: var(--muted); }
+.tool[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.tool:disabled { opacity: 0.45; cursor: not-allowed; }
+.tool-icon svg { width: 15px; height: 15px; display: block; }
+.swatch {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); cursor: pointer;
+  background: var(--swatch); box-shadow: 0 0 0 1px var(--border);
+}
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--fg); }
+.swatch:disabled { opacity: 0.35; cursor: not-allowed; }
+.tool-hint { margin-left: auto; }
 .shot-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
 
 .description { display: grid; gap: 6px; }
 .description label { font-size: 13px; margin-top: 4px; }
+
+.triage { display: grid; gap: 10px; }
+.triage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.triage-head .section-title { margin: 0; }
+#triage-intro, #triage-setup { margin: 0; }
+.triage-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+#triage-run.busy svg { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.triage-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.severity { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.severity-critical { background: #7f1d1d; color: #fff; }
+.severity-high { background: var(--accent); color: #fff; }
+.severity-medium { background: #f59e0b; color: #1c1917; }
+.severity-low { background: var(--surface-2); color: var(--fg); }
+.triage-summary { margin: 4px 0 0; font-size: 15px; font-weight: 500; }
+.triage-fields { margin: 6px 0 0; display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 8px 16px; font-size: 13px; }
+.triage-fields dt { color: var(--muted); font-weight: 600; }
+.triage-fields dd { margin: 0; }
+.triage-fields ul, .triage-fields ol { margin: 0; padding-left: 18px; }
+.triage-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 600; }
+@media (max-width: 640px) { .triage-fields { grid-template-columns: 1fr; } .triage-fields dd { margin-bottom: 4px; } }
 
 .export { display: grid; gap: 8px; }
 .export label { font-size: 13px; }

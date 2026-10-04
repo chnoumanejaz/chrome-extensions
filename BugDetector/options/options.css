@@ -16,7 +16,10 @@
 .field.row { grid-template-columns: 1fr auto; align-items: center; gap: 16px; }
 .label { font-weight: 600; font-size: 13px; }
 .help { margin: 0; font-size: 12px; color: var(--muted); }
-.inline { display: flex; align-items: center; gap: 8px; }
+.inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.inline input[type="password"], .inline input[type="text"] { flex: 1; min-width: 200px; font-family: var(--mono); }
+#api-key-status.ok { color: var(--success); }
+#api-key-status.bad { color: var(--accent); }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-2 .field { margin-top: 14px; align-content: start; }

@@ -125,6 +125,20 @@ export function redactUrl(url, { keys, maskEmails = false }) {
   return out;
 }
 
+function redactElement(element, opts) {
+  const attributes = {};
+  for (const [name, value] of Object.entries(element.attributes || {})) {
+    attributes[name] = /^(href|src|action)$/.test(name) ? redactUrl(value, opts) : redactText(value, opts);
+  }
+  return {
+    ...element,
+    text: redactText(element.text, opts),
+    html: redactText(element.html, opts),
+    attributes,
+    issues: (element.issues || []).map((issue) => redactText(issue, opts))
+  };
+}
+
 /**
  * Returns a redacted copy of a report (see lib/report-model.js).
  * Bodies are redacted first and truncated afterwards so key patterns are
@@ -159,6 +173,7 @@ export function redactReport(report, settings) {
       requestBody: body(entry.requestBody),
       responseBody: body(entry.responseBody)
     })),
-    breadcrumbs: report.breadcrumbs.map((entry) => ({ ...entry, text: text(entry.text) }))
+    breadcrumbs: report.breadcrumbs.map((entry) => ({ ...entry, text: text(entry.text) })),
+    element: report.element ? redactElement(report.element, opts) : report.element
   };
 }

@@ -1,8 +1,14 @@
 import { FORMATS, SECTIONS, formatReport, formatTimestamp } from "../lib/report-format.js";
 import { getReport, updateReport, deleteReport } from "../lib/report-store.js";
+import { renderComposite } from "../lib/annotations.js";
+import { getSettings, updateSettings, getApiKey } from "../lib/settings.js";
 import { $, h, debounce, showStatus } from "../ui/ui.js";
+import { createAnnotator } from "./annotator.js";
+import { setupTriage } from "./triage.js";
 
 const PREFS_KEY = "reportPrefs";
+/** Sections that only exist for some reports; their toggles are hidden otherwise. */
+const OPTIONAL_SECTIONS = { triage: (report) => Boolean(report.triage), element: (report) => Boolean(report.element) };
 const FILE_EXTENSIONS = { markdown: "md", slack: "txt", text: "txt", ai: "md", json: "json" };
 const COPY_LABELS = { ai: "Copy AI prompt", json: "Copy JSON" };
 
@@ -15,12 +21,22 @@ if (!stored) {
   await init(stored);
 }
 
+/**
+ * Prefs remember the sections the user turned *off*, so sections added in
+ * later versions are included by default.
+ */
 async function loadPrefs() {
   const { [PREFS_KEY]: prefs } = await chrome.storage.local.get(PREFS_KEY);
   const sectionIds = SECTIONS.map((section) => section.id);
+  let excluded = [];
+  if (Array.isArray(prefs?.excluded)) excluded = prefs.excluded.filter((id) => sectionIds.includes(id));
+  else if (Array.isArray(prefs?.sections)) {
+    // v1.0 stored the included list.
+    excluded = ["description", "network", "console", "steps", "environment"].filter((id) => !prefs.sections.includes(id));
+  }
   return {
     format: FORMATS.some((format) => format.id === prefs?.format) ? prefs.format : "markdown",
-    sections: Array.isArray(prefs?.sections) ? prefs.sections.filter((s) => sectionIds.includes(s)) : sectionIds
+    excluded
   };
 }
 
@@ -50,6 +66,9 @@ async function init(record) {
     warnings: $("#warnings"),
     shotCard: $("#shot-card"),
     screenshot: $("#screenshot"),
+    toolbar: $("#annotate-toolbar"),
+    annotate: $("#annotate"),
+    annotateLabel: $("#annotate-label"),
     actual: $("#actual"),
     expected: $("#expected"),
     format: $("#format"),
@@ -86,27 +105,52 @@ async function init(record) {
 
   // --------------------------------------------------------- screenshot
 
-  let screenshotUrl = null;
+  let annotator = null;
+  report.annotations ??= [];
+
+  /** Screenshot with annotations and blurs applied: the only version that leaves this page. */
+  const composite = (options) => renderComposite(screenshot, annotator?.annotations ?? report.annotations, options);
+
+  const persistAnnotations = debounce((annotations) => {
+    updateReport(report.id, { annotations }).catch(() => {});
+  }, 300);
+
   if (screenshot) {
-    screenshotUrl = URL.createObjectURL(screenshot);
-    els.screenshot.src = screenshotUrl;
+    annotator = createAnnotator({
+      canvas: els.screenshot,
+      toolbar: els.toolbar,
+      image: await createImageBitmap(screenshot),
+      annotations: report.annotations,
+      onChange: (annotations) => {
+        report.annotations = annotations;
+        persistAnnotations(annotations);
+      }
+    });
   } else {
     els.shotCard.hidden = true;
   }
 
+  els.annotate.addEventListener("click", () => {
+    annotator.setEditing(!annotator.editing);
+    els.annotateLabel.textContent = annotator.editing ? "Done" : "Annotate";
+    els.annotate.classList.toggle("btn-primary", annotator.editing);
+    if (!annotator.editing) persistAnnotations.flush(report.annotations);
+  });
+
   $("#copy-image").addEventListener("click", async () => {
     try {
-      await navigator.clipboard.write([new ClipboardItem({ [screenshot.type || "image/png"]: screenshot })]);
+      // ClipboardItem accepts a promise, which keeps the user activation alive while rendering.
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": composite() })]);
       showStatus("Screenshot copied");
     } catch (error) {
       showStatus(`Couldn't copy image: ${error.message}`, 3000);
     }
   });
-  $("#download-image").addEventListener("click", () => {
-    download(screenshot, `bug-${slugify(report.title)}.png`);
+  $("#download-image").addEventListener("click", async () => {
+    download(await composite(), `bug-${slugify(currentReport().title)}.png`);
   });
-  $("#open-image").addEventListener("click", () => {
-    chrome.tabs.create({ url: screenshotUrl });
+  $("#open-image").addEventListener("click", async () => {
+    chrome.tabs.create({ url: URL.createObjectURL(await composite()) });
   });
 
   // ------------------------------------------------------------- export
@@ -116,17 +160,26 @@ async function init(record) {
   }
   els.format.value = prefs.format;
 
+  const toggleById = new Map();
   for (const section of SECTIONS) {
-    els.toggles.append(h("label", { className: "toggle-chip" },
-      h("input", { type: "checkbox", value: section.id, checked: prefs.sections.includes(section.id) }),
+    const label = h("label", { className: "toggle-chip" },
+      h("input", { type: "checkbox", value: section.id, checked: !prefs.excluded.includes(section.id) }),
       h("span", {}, section.label)
-    ));
+    );
+    toggleById.set(section.id, label);
+    els.toggles.append(label);
+  }
+
+  function syncOptionalToggles() {
+    for (const [id, hasData] of Object.entries(OPTIONAL_SECTIONS)) toggleById.get(id).hidden = !hasData(report);
   }
 
   function currentOptions() {
+    const inputs = [...els.toggles.querySelectorAll("input")];
     return {
       format: els.format.value,
-      sections: [...els.toggles.querySelectorAll("input:checked")].map((input) => input.value)
+      sections: inputs.filter((input) => input.checked).map((input) => input.value),
+      excluded: inputs.filter((input) => !input.checked).map((input) => input.value)
     };
   }
 
@@ -152,7 +205,10 @@ async function init(record) {
     updateReport(report.id, { title, description }).catch(() => {});
   }, 400);
 
-  const persistPrefs = () => chrome.storage.local.set({ [PREFS_KEY]: currentOptions() });
+  const persistPrefs = () => {
+    const { format, excluded } = currentOptions();
+    chrome.storage.local.set({ [PREFS_KEY]: { format, excluded } });
+  };
 
   for (const input of [els.title, els.actual, els.expected]) {
     input.addEventListener("input", () => {
@@ -199,6 +255,32 @@ async function init(record) {
     if (tab?.id) chrome.tabs.remove(tab.id);
   });
 
+  // -------------------------------------------------------------- triage
+
+  const settings = await getSettings();
+  setupTriage({
+    report,
+    hasApiKey: Boolean(await getApiKey()),
+    settings,
+    hasScreenshot: Boolean(screenshot),
+    getReport: currentReport,
+    getScreenshot: composite,
+    onIncludeScreenshotChange: (value) => updateSettings({ aiIncludeScreenshot: value }),
+    onTriage: async (triage) => {
+      report.triage = triage;
+      syncOptionalToggles();
+      render();
+      await updateReport(report.id, { triage });
+    },
+    onUseTitle: (title) => {
+      els.title.value = title;
+      document.title = `${title} · BugDetector`;
+      render();
+      persistEdits.flush();
+    }
+  });
+
+  syncOptionalToggles();
   render();
   els.layout.hidden = false;
 }

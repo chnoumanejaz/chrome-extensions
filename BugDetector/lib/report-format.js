@@ -1,3 +1,5 @@
+import "../shared/settings-schema.js";
+
 /**
  * Renders a report as Markdown, Slack, plain text, an AI prompt or JSON.
  * Pure functions — unit tested in test/unit/report-format.test.mjs.
@@ -13,6 +15,8 @@ export const FORMATS = Object.freeze([
 
 export const SECTIONS = Object.freeze([
   { id: "description", label: "Description" },
+  { id: "triage", label: "AI triage" },
+  { id: "element", label: "Selected element" },
   { id: "network", label: "Failed requests" },
   { id: "console", label: "Console errors" },
   { id: "steps", label: "Steps before the bug" },
@@ -230,6 +234,48 @@ function renderEnvironment(report, d) {
   return [d.heading("Environment"), rows.map(([key, value]) => `- ${key}: ${value}`).join("\n")];
 }
 
+
+function capitalize(text) {
+  return text ? text[0].toUpperCase() + text.slice(1) : text;
+}
+
+function renderTriage(report, d) {
+  const triage = report.triage;
+  if (!triage) return [];
+  const model = globalThis.BugDetectorSettings.AI_MODELS.find((m) => triage.model?.startsWith(m.id))?.name || triage.model;
+  const out = [d.heading(`AI triage${model ? ` (${model})` : ""}`)];
+  out.push([
+    `${d.bold("Severity:")} ${capitalize(triage.severity)}: ${triage.severity_reason}`,
+    `${d.bold("Area:")} ${capitalize(triage.area)}`,
+    `${d.bold("Summary:")} ${triage.summary}`
+  ].join("\n"));
+  out.push(`${d.bold("Likely root cause:")} ${triage.likely_root_cause}`);
+  if (triage.evidence?.length) out.push(`${d.bold("Evidence:")}\n${triage.evidence.map((item) => `- ${item}`).join("\n")}`);
+  out.push(`${d.bold("Suggested fix:")} ${triage.suggested_fix}`);
+  if (triage.next_steps?.length) {
+    out.push(`${d.bold("Next steps:")}\n${triage.next_steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}`);
+  }
+  out.push("AI-generated: verify before acting on it.");
+  return out;
+}
+
+function renderElement(report, d) {
+  const el = report.element;
+  if (!el) return [];
+  const out = [d.heading("Selected element")];
+  const size = el.rect ? ` · ${el.rect.width}×${el.rect.height} at (${el.rect.x}, ${el.rect.y})` : "";
+  out.push(`${d.code(el.selector)}${el.text ? ` "${el.text}"` : ""}${size}`);
+  if (el.issues?.length) {
+    out.push(`${d.bold("Possible problems:")}\n${el.issues.map((issue) => `- ${issue}`).join("\n")}`);
+  } else {
+    out.push("No obvious problems detected (visible, enabled, not covered).");
+  }
+  const styles = Object.entries(el.styles || {}).map(([key, value]) => `${key}: ${value}`);
+  if (styles.length) out.push(`Computed styles:\n${d.block(styles.join("\n"))}`);
+  if (el.html) out.push(`HTML:\n${d.block(el.html, "html")}`);
+  return out;
+}
+
 function renderDescription(report, d) {
   const { actual, expected } = report.description || {};
   const out = [];
@@ -252,6 +298,8 @@ function renderHuman(report, dialectId, sections) {
 
   const renderers = {
     description: renderDescription,
+    triage: renderTriage,
+    element: renderElement,
     network: renderNetwork,
     console: renderConsole,
     steps: renderSteps,
@@ -284,9 +332,11 @@ function renderAiPrompt(report, sections) {
 }
 
 function renderJson(report, sections) {
-  const { id, version, createdAt, title, description, page, environment, console: logs, network, breadcrumbs, warnings } = report;
+  const { id, version, createdAt, title, description, page, environment, console: logs, network, breadcrumbs, warnings, triage, element } = report;
   const out = { title, createdAt: new Date(createdAt).toISOString(), page };
   if (sections.includes("description")) out.description = description;
+  if (sections.includes("triage") && triage) out.triage = triage;
+  if (sections.includes("element") && element) out.element = element;
   if (sections.includes("network")) out.network = network;
   if (sections.includes("console")) out.console = logs;
   if (sections.includes("steps")) out.steps = breadcrumbs;

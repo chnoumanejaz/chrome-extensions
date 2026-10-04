@@ -118,7 +118,7 @@ test("empty report still renders cleanly", () => {
 });
 
 test("exports metadata used by the report page", () => {
-  assert.deepEqual(SECTIONS.map((s) => s.id), ["description", "network", "console", "steps", "environment"]);
+  assert.deepEqual(SECTIONS.map((s) => s.id), ["description", "triage", "element", "network", "console", "steps", "environment"]);
   assert.deepEqual(FORMATS.map((f) => f.id), ["markdown", "slack", "text", "ai", "json"]);
   assert.throws(() => formatReport(sampleReport(), { format: "nope" }), /Unknown report format/);
 });
@@ -133,4 +133,53 @@ test("source location is not repeated when the stack already contains it", () =>
   });
   const md = formatReport(report);
   assert.equal(md.split("http://x.test/:83:22").length - 1, 1);
+});
+
+const TRIAGE = {
+  title: "Order API returns 500 when coupon is unknown",
+  summary: "Checkout fails for any unknown coupon.",
+  severity: "high",
+  severity_reason: "Checkout is a core flow with no workaround.",
+  likely_root_cause: "POST /api/orders throws coupon_not_found as a 500 instead of a 4xx.",
+  area: "backend",
+  evidence: ["POST /api/orders → 500 coupon_not_found", "TypeError reading 'total'"],
+  suggested_fix: "Return 422 for unknown coupons and handle it in the client.",
+  next_steps: ["Add a test for unknown coupons"],
+  model: "claude-opus-5-5"
+};
+
+const ELEMENT = {
+  selector: "#place-order",
+  tag: "button",
+  text: "Place order",
+  rect: { x: 10, y: 20, width: 120, height: 40 },
+  devicePixelRatio: 2,
+  styles: { display: "inline-block", "pointer-events": "auto" },
+  issues: ["Covered by div.overlay (z-index 10, opacity 0, invisible): clicks at its centre hit that element instead."],
+  html: '<button id="place-order">Place order</button>',
+  attributes: { id: "place-order" }
+};
+
+test("triage and element sections render only when present", () => {
+  const without = formatReport(sampleReport());
+  assert.doesNotMatch(without, /AI triage|Selected element/);
+
+  const md = formatReport(sampleReport({ triage: TRIAGE, element: ELEMENT }));
+  assert.match(md, /### AI triage \(Claude Opus 5\.5\)/);
+  assert.match(md, /\*\*Severity:\*\* High: Checkout is a core flow/);
+  assert.match(md, /\*\*Area:\*\* Backend/);
+  assert.match(md, /- POST \/api\/orders → 500 coupon_not_found/);
+  assert.match(md, /1\. Add a test for unknown coupons/);
+  assert.match(md, /### Selected element\n\n`#place-order` "Place order" · 120×40 at \(10, 20\)/);
+  assert.match(md, /- Covered by div\.overlay/);
+  assert.match(md, /```html\n<button id="place-order">Place order<\/button>\n```/);
+  assert.ok(md.indexOf("AI triage") < md.indexOf("Selected element"));
+  assert.ok(md.indexOf("Selected element") < md.indexOf("Failed requests"));
+
+  const json = JSON.parse(formatReport(sampleReport({ triage: TRIAGE, element: ELEMENT }), { format: "json" }));
+  assert.equal(json.triage.severity, "high");
+  assert.equal(json.element.selector, "#place-order");
+
+  const noTriage = formatReport(sampleReport({ triage: TRIAGE }), { sections: ["network"] });
+  assert.doesNotMatch(noTriage, /AI triage/);
 });

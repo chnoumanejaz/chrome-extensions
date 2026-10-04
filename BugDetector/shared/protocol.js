@@ -24,7 +24,9 @@
       /** popup → collector: counts for the current page. */
       GET_STATS: "bd/get-stats",
       /** collector → SW: number of detected issues, shown on the toolbar badge. */
-      BADGE_UPDATE: "bd/badge-update"
+      BADGE_UPDATE: "bd/badge-update",
+      /** SW/popup → collector: start the "select the broken element" picker. */
+      START_PICKER: "bd/start-picker"
     })
   });
 })();

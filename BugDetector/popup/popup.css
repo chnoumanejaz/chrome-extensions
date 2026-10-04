@@ -14,12 +14,8 @@ body { width: 340px; background: var(--surface); }
 .page .notice { margin: 0; }
 
 .capture { display: grid; gap: 8px; }
-.shortcut { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.linklike {
-  border: 0; padding: 0; background: none; color: var(--accent);
-  font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
-}
-.error { margin: 0; color: var(--accent); text-align: center; }
+.shortcut { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; }
+.capture .error { text-align: center; }
 
 .settings { display: grid; gap: 2px; border-top: 1px solid var(--border); padding-top: 8px; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }

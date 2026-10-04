@@ -20,14 +20,52 @@
       <h2>Capture</h2>
       <div class="field row">
         <div>
-          <div class="label">Keyboard shortcut</div>
+          <div class="label">Capture shortcut</div>
           <p class="help">Captures a report for the current tab from anywhere on the page.</p>
         </div>
-        <div class="inline">
-          <kbd id="shortcut">…</kbd>
-          <button class="btn" id="change-shortcut" type="button">Change</button>
-        </div>
+        <kbd id="shortcut">…</kbd>
       </div>
+      <div class="field row">
+        <div>
+          <div class="label">Select-element shortcut</div>
+          <p class="help">Click the broken element first; it's highlighted in the screenshot and diagnosed in the report.</p>
+        </div>
+        <kbd id="pick-shortcut">…</kbd>
+      </div>
+      <div class="field">
+        <button class="btn" id="change-shortcut" type="button">Change shortcuts</button>
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h2>AI triage</h2>
+      <p class="help">Uses your own Claude API key to suggest a title, the severity and the likely root cause on the report page. Create a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.</p>
+      <div class="field">
+        <label for="api-key" class="label">Claude API key</label>
+        <div class="inline">
+          <input type="password" id="api-key" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+          <button class="btn" id="api-key-toggle" type="button" aria-pressed="false">Show</button>
+        </div>
+        <div class="inline">
+          <button class="btn btn-primary" id="api-key-save" type="button">Save key</button>
+          <button class="btn" id="api-key-test" type="button">Test</button>
+          <button class="btn btn-ghost btn-danger" id="api-key-remove" type="button">Remove</button>
+          <span class="small" id="api-key-status" role="status" aria-live="polite"></span>
+        </div>
+        <p class="help">Stored only on this device (chrome.storage.local, not synced) and sent only to api.anthropic.com.</p>
+      </div>
+      <div class="field">
+        <label for="aiModel" class="label">Model</label>
+        <select id="aiModel" data-setting="aiModel"></select>
+      </div>
+      <div class="field row">
+        <div>
+          <label for="aiIncludeScreenshot" class="label">Send the screenshot by default</label>
+          <p class="help">Your blurs and annotations are applied first. You can change this per report.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="aiIncludeScreenshot" data-setting="aiIncludeScreenshot"><span></span></label>
+      </div>
+      <p class="help">What's sent: the redacted report text (and the screenshot if enabled), only when you press “Analyze with Claude”. Usage is billed to your Anthropic account.</p>
     </section>
 
     <section class="card pad">

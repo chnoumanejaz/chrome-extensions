@@ -2,7 +2,7 @@ import "../shared/site-match.js";
 import { Msg } from "../lib/messages.js";
 import { getSettings, updateSettings } from "../lib/settings.js";
 import { listReports } from "../lib/report-store.js";
-import { $, h, timeAgo, getCaptureShortcut, openShortcutSettings, openReport } from "../ui/ui.js";
+import { $, h, timeAgo, getShortcut, openShortcutSettings, openReport } from "../ui/ui.js";
 
 const Sites = globalThis.BugDetectorSites;
 
@@ -14,6 +14,8 @@ const els = {
   captureLabel: $("#capture-label"),
   captureError: $("#capture-error"),
   shortcut: $("#shortcut"),
+  pick: $("#pick"),
+  pickShortcut: $("#pick-shortcut"),
   autoDetect: $("#auto-detect"),
   sensitivity: $("#sensitivity"),
   siteRow: $("#site-row"),
@@ -159,8 +161,19 @@ els.capture.addEventListener("click", async () => {
 $("#open-options").addEventListener("click", () => chrome.runtime.openOptionsPage());
 $("#change-shortcut").addEventListener("click", openShortcutSettings);
 
-getCaptureShortcut().then((shortcut) => {
-  els.shortcut.textContent = shortcut || "Not set";
+getShortcut("capture-bug").then((shortcut) => { els.shortcut.textContent = shortcut || "Not set"; });
+getShortcut("pick-element").then((shortcut) => { els.pickShortcut.textContent = shortcut || "Not set"; });
+
+els.pick.addEventListener("click", async () => {
+  els.captureError.hidden = true;
+  const result = await chrome.runtime.sendMessage({ type: Msg.START_PICKER, tabId: tab?.id })
+    .catch((error) => ({ ok: false, error: error.message }));
+  if (result?.ok) {
+    window.close();
+    return;
+  }
+  els.captureError.hidden = false;
+  els.captureError.textContent = result?.error || "Couldn't start the element picker on this page.";
 });
 
 renderSettings();
