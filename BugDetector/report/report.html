@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bug report · BugDetector</title>
+  <link rel="icon" href="../icons/icon32.png">
+  <link rel="stylesheet" href="../ui/theme.css">
+  <link rel="stylesheet" href="report.css">
+  <script type="module" src="report.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="../icons/icon48.png" alt=""> BugDetector</div>
+    <div class="topbar-meta small muted" id="created"></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-danger" id="delete" type="button">Delete report</button>
+    </div>
+  </header>
+
+  <main class="layout" id="layout" hidden>
+    <div class="col-main">
+      <section class="card pad">
+        <label class="sr-only" for="title">Title</label>
+        <input id="title" class="title-input" type="text" placeholder="Short summary of the bug" autocomplete="off">
+        <a id="page-link" class="page-link small" target="_blank" rel="noreferrer"></a>
+        <div class="summary" id="summary"></div>
+        <div id="warnings"></div>
+      </section>
+
+      <section class="card pad triage" id="triage-card" aria-labelledby="triage-title">
+        <div class="triage-head">
+          <h2 class="section-title" id="triage-title">AI triage</h2>
+          <span class="small muted" id="triage-meta"></span>
+        </div>
+        <p class="small muted" id="triage-intro">Claude suggests a title, the severity and the likely root cause from the evidence below.</p>
+        <div id="triage-result" hidden></div>
+        <p class="error small" id="triage-error" role="alert" hidden></p>
+        <div class="triage-actions" id="triage-actions">
+          <label class="check small"><input type="checkbox" id="triage-include-shot"> Send the screenshot (with your blurs applied)</label>
+          <button class="btn btn-primary" id="triage-run" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.7l-5.1 3.6L16.8 21 12 17.3 7.2 21l1.9-6.7L4 10.7l6.1-1.9z"/></svg>
+            <span id="triage-run-label">Analyze with Claude</span>
+          </button>
+        </div>
+        <p class="small muted" id="triage-setup" hidden>
+          Add your Claude API key in <button class="linklike" id="open-settings" type="button">Settings → AI triage</button> to enable this.
+        </p>
+      </section>
+
+      <section class="card shot" id="shot-card">
+        <div class="annotate-toolbar" id="annotate-toolbar" role="toolbar" aria-label="Annotation tools" hidden></div>
+        <div class="shot-frame" id="shot-frame">
+          <canvas id="screenshot" role="img" aria-label="Screenshot of the page when the bug was captured"></canvas>
+        </div>
+        <div class="shot-actions">
+          <button class="btn" id="annotate" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            <span id="annotate-label">Annotate</span>
+          </button>
+          <button class="btn" id="copy-image" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy screenshot
+          </button>
+          <button class="btn" id="download-image" type="button">Download PNG</button>
+          <button class="btn btn-ghost" id="open-image" type="button">Open full size</button>
+        </div>
+      </section>
+
+      <section class="card pad description">
+        <h2 class="section-title">Description <span class="muted small">(optional)</span></h2>
+        <label for="actual">What happened?</label>
+        <textarea id="actual" placeholder="e.g. Clicking “Place order” shows a spinner forever."></textarea>
+        <label for="expected">What did you expect?</label>
+        <textarea id="expected" placeholder="e.g. The order is created and I see the confirmation page."></textarea>
+      </section>
+    </div>
+
+    <aside class="col-side">
+      <section class="card pad export">
+        <h2 class="section-title">Share</h2>
+
+        <label for="format">Format</label>
+        <select id="format"></select>
+
+        <fieldset class="sections">
+          <legend>Include</legend>
+          <div id="section-toggles"></div>
+        </fieldset>
+
+        <div class="export-actions">
+          <button class="btn btn-primary btn-lg btn-block" id="copy-text" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span id="copy-text-label">Copy report</span>
+          </button>
+          <button class="btn btn-block" id="download-text" type="button">Download file</button>
+        </div>
+        <p class="small muted hint">Tip: paste the report, then press <kbd>Copy screenshot</kbd> and paste again to attach the image.</p>
+      </section>
+
+      <section class="card preview-card">
+        <div class="preview-head">
+          <h2 class="section-title">Preview</h2>
+          <span class="small muted" id="char-count"></span>
+        </div>
+        <pre id="preview" class="preview" tabindex="0"></pre>
+      </section>
+    </aside>
+  </main>
+
+  <main class="missing" id="missing" hidden>
+    <div class="card pad">
+      <h1>Report not found</h1>
+      <p class="muted">It may have been deleted or pruned (only the most recent reports are kept).</p>
+    </div>
+  </main>
+</body>
+</html>

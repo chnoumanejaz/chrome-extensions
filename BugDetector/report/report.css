@@ -1,0 +1,133 @@
+body { min-height: 100vh; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 24px;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-actions { margin-left: auto; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+  gap: 20px;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 20px 24px 48px;
+  align-items: start;
+}
+.col-main, .col-side { display: grid; gap: 16px; min-width: 0; }
+.col-side { position: sticky; top: 72px; }
+
+@media (max-width: 960px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .col-side { position: static; }
+  .topbar { padding: 10px 16px; }
+}
+
+.pad { padding: 18px; }
+.section-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+
+.title-input {
+  border: 0 !important; padding: 0 !important; background: transparent !important;
+  font-size: 22px !important; font-weight: 700; line-height: 1.3 !important;
+}
+.title-input:focus-visible { outline-offset: 6px; border-radius: 4px; }
+
+.page-link {
+  display: block; margin-top: 4px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+#warnings { display: grid; gap: 8px; }
+#warnings:not(:empty) { margin-top: 12px; }
+
+.shot { overflow: hidden; }
+.shot-frame {
+  background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px;
+  display: grid; place-items: center; border-bottom: 1px solid var(--border);
+}
+.shot-frame canvas { display: block; max-width: 100%; height: auto; max-height: 70vh; touch-action: none; }
+.shot-frame canvas.editing { cursor: crosshair; outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+.annotate-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.tool-group { display: flex; align-items: center; gap: 4px; }
+.tool {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 10px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--fg);
+  font: 500 12px var(--font); cursor: pointer;
+}
+.tool:hover { border-color: var(--muted); }
+.tool[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.tool:disabled { opacity: 0.45; cursor: not-allowed; }
+.tool-icon svg { width: 15px; height: 15px; display: block; }
+.swatch {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); cursor: pointer;
+  background: var(--swatch); box-shadow: 0 0 0 1px var(--border);
+}
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--fg); }
+.swatch:disabled { opacity: 0.35; cursor: not-allowed; }
+.tool-hint { margin-left: auto; }
+.shot-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
+
+.description { display: grid; gap: 6px; }
+.description label { font-size: 13px; margin-top: 4px; }
+
+.triage { display: grid; gap: 10px; }
+.triage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.triage-head .section-title { margin: 0; }
+#triage-intro, #triage-setup { margin: 0; }
+.triage-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+#triage-run.busy svg { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.triage-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.severity { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.severity-critical { background: #7f1d1d; color: #fff; }
+.severity-high { background: var(--accent); color: #fff; }
+.severity-medium { background: #f59e0b; color: #1c1917; }
+.severity-low { background: var(--surface-2); color: var(--fg); }
+.triage-summary { margin: 4px 0 0; font-size: 15px; font-weight: 500; }
+.triage-fields { margin: 6px 0 0; display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 8px 16px; font-size: 13px; }
+.triage-fields dt { color: var(--muted); font-weight: 600; }
+.triage-fields dd { margin: 0; }
+.triage-fields ul, .triage-fields ol { margin: 0; padding-left: 18px; }
+.triage-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 600; }
+@media (max-width: 640px) { .triage-fields { grid-template-columns: 1fr; } .triage-fields dd { margin-bottom: 4px; } }
+
+.export { display: grid; gap: 8px; }
+.export label { font-size: 13px; }
+.sections { border: 0; padding: 0; margin: 6px 0 0; }
+.sections legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom: 6px; }
+#section-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.toggle-chip { position: relative; }
+.toggle-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.toggle-chip span {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 12px; font-weight: 500; color: var(--muted); background: var(--surface);
+  pointer-events: none;
+}
+.toggle-chip span::before { content: "＋"; font-size: 11px; }
+.toggle-chip input:checked + span { color: var(--fg); border-color: var(--fg); }
+.toggle-chip input:checked + span::before { content: "✓"; }
+.toggle-chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.export-actions { display: grid; gap: 8px; margin-top: 8px; }
+.hint { margin: 2px 0 0; }
+
+.preview-card { overflow: hidden; }
+.preview-head { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 18px 0; }
+.preview {
+  margin: 0; padding: 12px 18px 18px;
+  max-height: 55vh; overflow: auto;
+  font-size: 12px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+}
+
+.missing { max-width: 560px; margin: 80px auto; padding: 0 16px; }
+.missing h1 { font-size: 20px; margin-bottom: 8px; }

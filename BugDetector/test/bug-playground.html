@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BugDetector Playground</title>
+  <style>
+    :root { color-scheme: light dark; --accent: #e5484d; }
+    body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
+    main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { margin: 0 0 4px; }
+    p { margin: 0 0 24px; opacity: 0.75; }
+    section { margin-bottom: 28px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6; margin: 0 0 10px; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      padding: 9px 14px; border-radius: 10px; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+      background: color-mix(in srgb, CanvasText 4%, Canvas); color: inherit; font: inherit; cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    label { display: grid; gap: 4px; font-size: 13px; }
+    input { padding: 8px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); font: inherit; }
+    #log { font: 12px ui-monospace, monospace; white-space: pre-wrap; opacity: 0.7; }
+    .images img { width: 1px; height: 1px; }
+    .stage { position: relative; display: inline-block; }
+    /* An invisible overlay left behind by a closed modal: it swallows clicks on the button below. */
+    .ghost-overlay { position: absolute; inset: -8px; z-index: 10; opacity: 0; background: #000; }
+    #pay-now { background: #16a34a; color: #fff; border-color: #16a34a; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🐞 BugDetector Playground</h1>
+    <p>Each button triggers a different kind of bug. Watch for the “Bug detected” popup, then press the capture shortcut (default <kbd>Alt+Shift+D</kbd>), or use “Select broken element” (<kbd>Alt+Shift+E</kbd>).</p>
+
+    <section>
+      <h2>JavaScript errors</h2>
+      <div class="buttons">
+        <button id="throw-error" type="button">Throw uncaught TypeError</button>
+        <button id="reject-promise" type="button">Unhandled promise rejection</button>
+        <button id="console-error" type="button">console.error()</button>
+        <button id="console-warn" type="button">console.warn()</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Failing API calls</h2>
+      <div class="buttons">
+        <button id="fetch-500" type="button">POST /api/orders → 500</button>
+        <button id="fetch-404" type="button">GET /api/users/42 → 404</button>
+        <button id="fetch-network" type="button">fetch → network failure</button>
+        <button id="xhr-500" type="button">XHR PUT /api/profile → 500</button>
+        <button id="fetch-ok" type="button">GET /api/ok → 200 (no bug)</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Resources &amp; navigation</h2>
+      <div class="buttons">
+        <button id="broken-image" type="button">Load a broken image</button>
+        <button id="spa-navigate" type="button">SPA navigation (pushState)</button>
+      </div>
+      <div class="images" id="images"></div>
+    </section>
+
+    <section>
+      <h2>Broken UI (use “Select broken element”)</h2>
+      <p>The button below does nothing because an invisible overlay covers it.</p>
+      <div class="stage">
+        <button id="pay-now" type="button">Pay now</button>
+        <div class="ghost-overlay" data-testid="ghost-overlay"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>A realistic flow</h2>
+      <form id="checkout">
+        <label>Email <input name="email" type="email" placeholder="you@example.com"></label>
+        <label>Coupon <input name="coupon" type="text" placeholder="SAVE10"></label>
+        <button type="submit">Place order</button>
+      </form>
+    </section>
+
+    <div id="log"></div>
+  </main>
+
+  <script>
+    const log = (text) => { document.getElementById("log").textContent += `${text}\n`; };
+    const on = (id, fn) => document.getElementById(id).addEventListener("click", fn);
+
+    on("pay-now", () => log("Paid!"));
+
+    on("throw-error", () => {
+      setTimeout(() => {
+        const order = undefined;
+        log("Throwing TypeError…");
+        return order.total;
+      });
+    });
+
+    on("reject-promise", () => {
+      Promise.reject(new Error("Payment provider timeout after 30000ms"));
+      log("Rejected a promise");
+    });
+
+    on("console-error", () => {
+      console.error("Failed to render <PriceTag>:", { sku: "SKU-123", price: null });
+      log("console.error called");
+    });
+
+    on("console-warn", () => {
+      console.warn("Deprecated prop `color` passed to <Button>");
+      log("console.warn called");
+    });
+
+    async function placeOrder(email, coupon) {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer secret-token-123"
+        },
+        body: JSON.stringify({ cartId: "c_12", coupon, email, password: "hunter2" })
+      });
+      log(`POST /api/orders → ${response.status}`);
+      return response;
+    }
+
+    on("fetch-500", () => placeOrder("ada@example.com", "SAVE10"));
+    on("fetch-404", async () => log(`GET /api/users/42 → ${(await fetch("/api/users/42")).status}`));
+    on("fetch-network", () => fetch("http://127.0.0.1:59999/unreachable").catch((error) => log(`fetch failed: ${error.message}`)));
+    on("fetch-ok", async () => log(`GET /api/ok → ${(await fetch("/api/ok")).status}`));
+
+    on("xhr-500", () => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", "/api/profile?api_key=abc123");
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onloadend = () => log(`XHR PUT /api/profile → ${xhr.status}`);
+      xhr.send(JSON.stringify({ name: "Ada", token: "tok_live_abc" }));
+    });
+
+    on("broken-image", () => {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = `/images/missing-${Date.now()}.png`;
+      document.getElementById("images").append(img);
+      log("Added a broken image");
+    });
+
+    on("spa-navigate", () => {
+      history.pushState({}, "", `?step=${Math.floor(Math.random() * 100)}`);
+      log(`Navigated to ${location.search}`);
+    });
+
+    document.getElementById("checkout").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = new FormData(event.target);
+      const response = await placeOrder(data.get("email"), data.get("coupon"));
+      const body = await response.json();
+      // Simulates a frontend that doesn't handle the error shape.
+      log(`Order total: ${body.order.total}`);
+    });
+  </script>
+</body>
+</html>

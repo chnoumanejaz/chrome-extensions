@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "BugDetector",
+  "version": "1.1.0",
+  "description": "Capture bugs in one shortcut: screenshot, console errors, failed API calls and user steps as a ready-to-paste report.",
+  "minimum_chrome_version": "111",
+  "permissions": ["storage", "scripting", "webRequest", "unlimitedStorage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "BugDetector",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "capture-bug": {
+      "suggested_key": {
+        "default": "Alt+Shift+D",
+        "mac": "Alt+Shift+D"
+      },
+      "description": "Capture a bug report for the current tab"
+    },
+    "pick-element": {
+      "suggested_key": {
+        "default": "Alt+Shift+E",
+        "mac": "Alt+Shift+E"
+      },
+      "description": "Select the broken element, then capture a report"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/page-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": [
+        "shared/protocol.js",
+        "shared/settings-schema.js",
+        "shared/site-match.js",
+        "shared/ring-buffer.js",
+        "content/toast.js",
+        "content/element-inspector.js",
+        "content/picker.js",
+        "content/collector.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}
