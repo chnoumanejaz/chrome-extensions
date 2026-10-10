@@ -25,6 +25,12 @@ export const SECTIONS = Object.freeze([
 
 const ALL_SECTIONS = SECTIONS.map((section) => section.id);
 
+/**
+ * Sections filled in by detection. A manual report (nothing was detected, the
+ * user filed it anyway) leaves them out instead of listing "None captured".
+ */
+export const DETECTED_SECTIONS = Object.freeze(["network", "console", "steps"]);
+
 /** Response headers worth showing in text formats (all are kept in JSON). */
 const USEFUL_RESPONSE_HEADERS = [
   "content-type",
@@ -284,6 +290,16 @@ function renderDescription(report, d) {
   return out.length ? [out.join("\n")] : [];
 }
 
+function issuesDetectedNote(report) {
+  return report.detectionOff
+    ? "not checked (BugDetector is turned off on this site), so this report was filed manually"
+    : "0 (nothing was found automatically, so this report was filed manually)";
+}
+
+function isSkipped(report, sectionId) {
+  return Boolean(report.manual) && DETECTED_SECTIONS.includes(sectionId);
+}
+
 function renderHuman(report, dialectId, sections) {
   const d = DIALECTS[dialectId];
   const env = report.environment;
@@ -294,6 +310,7 @@ function renderHuman(report, dialectId, sections) {
     `${d.bold("Captured:")} ${formatTimestamp(report.createdAt)}${env.timezone ? ` (${env.timezone})` : ""}`,
     `${d.bold("Browser:")} ${env.browser} on ${env.os}${viewportText(env) ? ` · ${viewportText(env)}` : ""}`
   ];
+  if (report.manual) summary.push(`${d.bold("Issues detected:")} ${issuesDetectedNote(report)}`);
   blocks.push(`${d.title(report.title || "Bug report")}\n\n${summary.join("\n")}`);
 
   const renderers = {
@@ -306,7 +323,7 @@ function renderHuman(report, dialectId, sections) {
     environment: renderEnvironment
   };
   for (const id of ALL_SECTIONS) {
-    if (!sections.includes(id)) continue;
+    if (!sections.includes(id) || isSkipped(report, id)) continue;
     blocks.push(...renderers[id](report, d));
   }
 
@@ -320,7 +337,22 @@ function renderHuman(report, dialectId, sections) {
   return blocks.join("\n\n");
 }
 
+function renderManualAiPrompt(report, sections) {
+  const screenshot = report.hasScreenshot ? " (I'll also paste a screenshot of the page)" : "";
+  const found = report.detectionOff
+    ? "BugDetector was turned off on this site when I reported this, so no errors or failed requests were checked"
+    : "BugDetector found no errors or failed requests when I reported this";
+  return [
+    "You are a senior web engineer helping me debug a bug in a web application.",
+    `${found}, so there is no automatic evidence. Below are my description${report.element ? ", the element I selected" : ""} and my environment${screenshot}. Treat them as the only facts and don't assume a cause they don't support.`,
+    "Please:\n1. List the most likely causes given my description (frontend, backend/API or configuration) and how to tell them apart.\n2. Tell me what to check or log first (console, network tab, server logs) to get real evidence.\n3. If the description is enough, suggest a concrete fix and how to verify it.",
+    "---",
+    renderHuman(report, "markdown", sections)
+  ].join("\n\n");
+}
+
 function renderAiPrompt(report, sections) {
+  if (report.manual) return renderManualAiPrompt(report, sections);
   const screenshot = report.hasScreenshot ? " (I'll also paste a screenshot of the page)" : "";
   return [
     "You are a senior web engineer helping me debug a bug in a web application.",
@@ -337,9 +369,11 @@ function renderJson(report, sections) {
   if (sections.includes("description")) out.description = description;
   if (sections.includes("triage") && triage) out.triage = triage;
   if (sections.includes("element") && element) out.element = element;
-  if (sections.includes("network")) out.network = network;
-  if (sections.includes("console")) out.console = logs;
-  if (sections.includes("steps")) out.steps = breadcrumbs;
+  if (report.manual) out.issuesDetected = report.detectionOff ? null : 0;
+  if (report.detectionOff) out.detectionOff = true;
+  if (sections.includes("network") && !isSkipped(report, "network")) out.network = network;
+  if (sections.includes("console") && !isSkipped(report, "console")) out.console = logs;
+  if (sections.includes("steps") && !isSkipped(report, "steps")) out.steps = breadcrumbs;
   if (sections.includes("environment")) out.environment = environment;
   if (warnings?.length) out.warnings = warnings;
   out.meta = { id, version, generator: "BugDetector" };

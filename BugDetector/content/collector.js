@@ -284,7 +284,7 @@
     signalCount += 1;
     updateBadge();
 
-    if (!settings.autoDetect || site.muted || capturing) return;
+    if (!settings.autoDetect || site.muted || capturing || Toast.isAsking()) return;
     if (!Toast.isOpen() && Date.now() < quietUntil) return;
 
     unseenSignals += 1;
@@ -301,18 +301,40 @@
     });
   }
 
-  async function requestCapture() {
+  async function requestCapture({ force = false } = {}) {
     Toast.setBusy("Capturing…");
-    const result = await send({ type: Msg.CAPTURE_REQUEST });
+    const result = await send({ type: Msg.CAPTURE_REQUEST, force });
+    if (result?.reason === "no-issues") return; // the service worker asked us to show the question
     if (!result?.ok) {
       Toast.setBusy("Capture failed");
       setTimeout(() => Toast.hide(), 2000);
     }
   }
 
+  /** The user's capture found nothing to report: say so, and let them file a manual report anyway. */
+  function askToCaptureAnyway() {
+    const element = pendingElement;
+    const label = element && `<${element.tag}>${element.text ? ` "${cleanText(element.text, 30)}"` : ""}`;
+    // Same bar as the "Bug detected" popup: warnings only count at the "all" alert level.
+    const looked = settings.sensitivity === "all" ? "errors, warnings or failed requests" : "errors or failed requests";
+    const picked = element && `the element you selected (${label}) is visible, enabled and not covered`;
+    const found = site.enabled
+      ? (picked ? `No ${looked} were found, and ${picked}.` : `No ${looked} were found on this page.`)
+      : `BugDetector isn't checking this site for ${looked}, so it can't tell whether anything is wrong${picked ? `; ${picked}` : ""}.`;
+    const keeps = element ? "a screenshot, the element and your environment details" : "a screenshot and your environment details";
+
+    Toast.showNoIssues({
+      title: site.enabled ? "No issues detected" : "BugDetector is off on this site",
+      detail: `${found} ${site.enabled ? "If something still looks wrong, continue" : "If something looks wrong, continue"} and describe it yourself. The report will contain only ${keeps}.`,
+      onContinue: () => requestCapture({ force: true }),
+      onCancel: () => { pendingElement = null; }
+    });
+  }
+
   function startPicker() {
     if (Picker.isActive()) return;
     Toast.hide();
+    pendingElement = null;
     Picker.start({
       onPick: (el) => {
         try {
@@ -401,6 +423,14 @@
         capturing = false;
         unseenSignals = 0;
         quietUntil = Date.now() + settings.cooldownSeconds * 1000;
+        sendResponse(true);
+        return false;
+
+      case Msg.NO_ISSUES:
+        capturing = false;
+        // The snapshot consumed the picked element; keep it for the "continue anyway" capture.
+        pendingElement = message.element || null;
+        askToCaptureAnyway();
         sendResponse(true);
         return false;
 

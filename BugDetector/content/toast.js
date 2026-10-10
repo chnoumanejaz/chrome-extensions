@@ -1,7 +1,8 @@
 /**
- * "Bug detected" toast, rendered in a closed shadow root so page CSS can't
- * leak in and page scripts can't reach inside. Exposes globalThis.BugDetectorToast
- * to the isolated content-script world only.
+ * "Bug detected" toast (and its "No issues detected" variant, which asks
+ * whether to file a report anyway), rendered in a closed shadow root so page
+ * CSS can't leak in and page scripts can't reach inside. Exposes
+ * globalThis.BugDetectorToast to the isolated content-script world only.
  */
 (() => {
   if (globalThis.BugDetectorToast) return;
@@ -10,6 +11,7 @@
 
   const STYLES = `
     :host { all: initial; }
+    [hidden] { display: none !important; }
     .toast {
       --bg: #ffffff; --fg: #18181b; --muted: #71717a; --border: #e4e4e7;
       --accent: #e5484d; --accent-fg: #ffffff; --accent-hover: #d13d42; --ghost-hover: #f4f4f5;
@@ -24,6 +26,7 @@
       transition: opacity 160ms ease, transform 160ms ease;
     }
     .toast[data-open] { opacity: 1; transform: none; pointer-events: auto; }
+    .toast[data-variant="empty"] { --accent: #3e63dd; --accent-hover: #3358c4; }
     @media (prefers-color-scheme: dark) {
       .toast { --bg: #1c1c1f; --fg: #f4f4f5; --muted: #a1a1aa; --border: #2e2e33; --ghost-hover: #27272a; }
     }
@@ -49,6 +52,9 @@
       color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
     }
+    .toast[data-variant="empty"] .detail {
+      font-family: inherit; font-size: 13px; line-height: 1.45; white-space: normal; overflow: visible;
+    }
     .actions { grid-column: 2; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
     button.primary {
       border: 0; border-radius: 8px; padding: 7px 12px; cursor: pointer;
@@ -71,11 +77,19 @@
       <path d="M6.5 13H3M21 13h-3.5M6 9.5L3.5 8M18 9.5L20.5 8M6.5 17L4 19M17.5 17L20 19"/>
     </svg>`;
 
+  const INFO_ICON = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 11v5M12 8h.01"/>
+    </svg>`;
+
   let host = null;
   let parts = null;
   let handlers = {};
   let hideTimer = 0;
   let hovering = false;
+  /** True while the "No issues detected" question is showing. */
+  let asking = false;
 
   function build() {
     host = document.createElement("bug-detector-ui");
@@ -96,9 +110,9 @@
     toast.setAttribute("role", "alert");
     toast.setAttribute("aria-live", "polite");
     toast.innerHTML = `
-      <div class="icon">${BUG_ICON}</div>
+      <div class="icon"></div>
       <div class="head">
-        <span class="title">Bug detected</span>
+        <span class="title"></span>
         <span class="count"></span>
         <button class="close" type="button" aria-label="Dismiss">×</button>
       </div>
@@ -107,24 +121,31 @@
         <button class="primary" type="button">Capture bug</button>
         <button class="link pick" type="button" title="Click the element that's broken to include it in the report">Pick element</button>
         <button class="link mute" type="button" title="Keep collecting data, but don't show this popup on this site">Mute site</button>
+        <button class="link cancel" type="button" hidden>Cancel</button>
       </div>`;
     shadow.append(toast);
 
     parts = {
       toast,
+      icon: toast.querySelector(".icon"),
+      title: toast.querySelector(".title"),
       count: toast.querySelector(".count"),
       detail: toast.querySelector(".detail"),
       capture: toast.querySelector(".primary"),
-      mute: toast.querySelector(".mute")
+      pick: toast.querySelector(".pick"),
+      mute: toast.querySelector(".mute"),
+      cancel: toast.querySelector(".cancel")
     };
 
-    parts.capture.addEventListener("click", () => handlers.onCapture?.());
-    parts.mute.addEventListener("click", () => handlers.onMute?.());
-    toast.querySelector(".pick").addEventListener("click", () => handlers.onPick?.());
-    toast.querySelector(".close").addEventListener("click", () => {
+    const dismiss = () => {
       hide();
       handlers.onDismiss?.();
-    });
+    };
+    parts.capture.addEventListener("click", () => handlers.onCapture?.());
+    parts.mute.addEventListener("click", () => handlers.onMute?.());
+    parts.pick.addEventListener("click", () => handlers.onPick?.());
+    parts.cancel.addEventListener("click", dismiss);
+    toast.querySelector(".close").addEventListener("click", dismiss);
     toast.addEventListener("mouseenter", () => { hovering = true; clearTimeout(hideTimer); });
     toast.addEventListener("mouseleave", () => { hovering = false; scheduleHide(); });
   }
@@ -136,7 +157,7 @@
 
   function scheduleHide() {
     clearTimeout(hideTimer);
-    if (hovering) return;
+    if (hovering || asking) return;
     hideTimer = setTimeout(() => {
       hide();
       handlers.onDismiss?.();
@@ -150,15 +171,46 @@
   function show(options) {
     mount();
     handlers = options;
+    applyVariant(false);
     parts.detail.textContent = options.detail;
     parts.detail.title = options.detail;
     parts.count.textContent = options.count > 1 ? `${options.count} issues` : "";
+    open();
+    scheduleHide();
+  }
+
+  /**
+   * Tells the user nothing was detected and asks whether to file a report
+   * anyway. Stays open until they answer, since it's a reply to something they did.
+   *
+   * @param {{ title?: string, detail: string, onContinue: Function, onCancel: Function }} options
+   */
+  function showNoIssues(options) {
+    mount();
+    handlers = { onCapture: options.onContinue, onDismiss: options.onCancel };
+    applyVariant(true, options.title);
+    parts.detail.textContent = options.detail;
+    parts.detail.title = "";
+    parts.count.textContent = "";
+    open();
+    clearTimeout(hideTimer);
+  }
+
+  function applyVariant(empty, title = "No issues detected") {
+    asking = empty;
+    parts.toast.dataset.variant = empty ? "empty" : "alert";
+    parts.icon.innerHTML = empty ? INFO_ICON : BUG_ICON;
+    parts.title.textContent = empty ? title : "Bug detected";
+    parts.capture.textContent = empty ? "Continue anyway" : "Capture bug";
+    parts.pick.hidden = parts.mute.hidden = empty;
+    parts.cancel.hidden = !empty;
+  }
+
+  function open() {
     parts.capture.disabled = false;
-    parts.capture.textContent = "Capture bug";
     host.setAttribute("data-open", "");
     // Next frame so the transition runs when the host was just inserted.
     requestAnimationFrame(() => parts.toast.setAttribute("data-open", ""));
-    scheduleHide();
   }
 
   function setBusy(label) {
@@ -178,6 +230,11 @@
     return Boolean(host?.hasAttribute("data-open"));
   }
 
+  /** True while the "No issues detected" question is waiting for an answer. */
+  function isAsking() {
+    return asking && isOpen();
+  }
+
   /** Removes the toast from the layout entirely (used right before a screenshot). */
   function detach() {
     hide();
@@ -188,5 +245,5 @@
     return Boolean(host) && node === host;
   }
 
-  globalThis.BugDetectorToast = Object.freeze({ show, hide, setBusy, isOpen, detach, isOwnElement });
+  globalThis.BugDetectorToast = Object.freeze({ show, showNoIssues, hide, setBusy, isOpen, isAsking, detach, isOwnElement });
 })();

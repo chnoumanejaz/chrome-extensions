@@ -407,6 +407,256 @@ try {
     if (shotsDir) await options.screenshot({ path: join(shotsDir, "8-options-ai.png"), fullPage: true });
     await options.close();
   });
+
+  // ------------------------------------------- nothing detected: ask before capturing
+
+  /**
+   * The toast lives in a closed shadow root, which Playwright can't see into;
+   * the DevTools protocol can. Hands `fn` the toast's text and a click helper.
+   */
+  async function useToast(target, fn) {
+    const cdp = await context.newCDPSession(target);
+    try {
+      const { root } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+      const kids = (node) => [...(node.children || []), ...(node.shadowRoots || [])];
+      const walk = (node, visit) => { visit(node); kids(node).forEach((kid) => walk(kid, visit)); };
+      const text = (node) => (node.nodeType === 3 ? node.nodeValue : kids(node).map(text).join(""));
+      const attrs = (node) => node.attributes || [];
+      const hasClass = (node, name) => (attrs(node)[attrs(node).indexOf("class") + 1] || "").split(" ").includes(name);
+
+      let host = null;
+      walk(root, (node) => { if (node.localName === "bug-detector-ui") host = node; });
+      assert.ok(host, "toast host not found");
+
+      let title = "";
+      let detail = "";
+      const buttons = [];
+      walk(host, (node) => {
+        if (node.nodeType !== 1) return;
+        if (hasClass(node, "title")) title = text(node);
+        if (hasClass(node, "detail")) detail = text(node);
+        if (node.localName === "button" && !attrs(node).includes("hidden")) buttons.push(node);
+      });
+
+      return await fn({
+        title,
+        detail,
+        buttons: buttons.map(text),
+        async click(label) {
+          const button = buttons.find((node) => text(node) === label);
+          assert.ok(button, `no "${label}" button in [${buttons.map(text)}]`);
+          const { object } = await cdp.send("DOM.resolveNode", { backendNodeId: button.backendNodeId });
+          await cdp.send("Runtime.callFunctionOn", { objectId: object.objectId, functionDeclaration: "function () { this.click(); }" });
+        }
+      });
+    } finally {
+      await cdp.detach();
+    }
+  }
+
+  const cleanUrl = `${base}?clean`;
+  const cleanPage = await context.newPage();
+  await cleanPage.goto(cleanUrl);
+  const asking = cleanPage.locator("bug-detector-ui[data-open]");
+  const cleanTab = () => worker.evaluate(async (url) => (await chrome.tabs.query({})).find((t) => t.url === url), cleanUrl);
+  const captureClean = async () => {
+    await cleanPage.bringToFront();
+    return worker.evaluate((t) => globalThis.BugDetector.captureTab(t), await cleanTab());
+  };
+
+  const storePage = await context.newPage();
+  await storePage.goto(`chrome-extension://${extensionId}/options/options.html`);
+  const savedReports = () => storePage.evaluate(async (url) => (await import(url)).listReports(), reportStore);
+  const reportsBefore = (await savedReports()).length;
+
+  await check("nothing detected: capture asks first instead of saving a report", async () => {
+    assert.deepEqual(await captureClean(), { ok: false, reason: "no-issues" });
+    await asking.waitFor({ state: "attached" });
+    await useToast(cleanPage, (toast) => {
+      assert.equal(toast.title, "No issues detected");
+      assert.match(toast.detail, /No errors or failed requests were found on this page\./);
+      assert.match(toast.detail, /continue and describe it yourself/);
+      assert.match(toast.detail, /only a screenshot and your environment details/);
+      assert.deepEqual(toast.buttons, ["×", "Continue anyway", "Cancel"]);
+    });
+    if (shotsDir) {
+      await cleanPage.waitForTimeout(300);
+      await cleanPage.screenshot({ path: join(shotsDir, "9-no-issues.png") });
+    }
+    assert.equal((await savedReports()).length, reportsBefore, "nothing saved yet");
+  });
+
+  await check("nothing detected: a lone console warning is below the alert bar, so it still asks", async () => {
+    await useToast(cleanPage, (toast) => toast.click("Cancel"));
+    await asking.waitFor({ state: "detached" });
+    await cleanPage.click("#console-warn");
+    await cleanPage.waitForTimeout(200);
+    assert.deepEqual(await captureClean(), { ok: false, reason: "no-issues" });
+    await asking.waitFor({ state: "attached" });
+  });
+
+  await check("nothing detected: Cancel closes the question and still saves nothing", async () => {
+    await useToast(cleanPage, (toast) => toast.click("Cancel"));
+    await asking.waitFor({ state: "detached" });
+    assert.equal((await savedReports()).length, reportsBefore);
+  });
+
+  await check("nothing detected: Continue anyway files a manual report with just the environment", async () => {
+    assert.equal((await captureClean()).reason, "no-issues");
+    await asking.waitFor({ state: "attached" });
+    const opened = context.waitForEvent("page");
+    await useToast(cleanPage, (toast) => toast.click("Continue anyway"));
+    const manualPage = await opened;
+    await manualPage.waitForSelector("#layout:not([hidden])", { timeout: 10000 });
+    await manualPage.setViewportSize({ width: 1400, height: 1000 });
+
+    const text = await manualPage.textContent("#preview");
+    assert.match(text, /\*\*Issues detected:\*\* 0 \(nothing was found automatically/);
+    assert.match(text, /### Environment\n\n- Browser: .+ on /);
+    assert.doesNotMatch(text, /Failed requests|Console errors|Steps before the bug|None captured|Selected element/);
+    assert.match(await manualPage.textContent("#summary"), /0\s*issues detected/);
+    assert.deepEqual(await manualPage.locator("#section-toggles label:not([hidden])").allTextContents(), ["Description", "Environment"]);
+    assert.equal(await manualPage.evaluate(() => document.activeElement?.id), "actual", "cursor is ready for the description");
+    if (shotsDir) await manualPage.screenshot({ path: join(shotsDir, "10-manual-report.png"), fullPage: true });
+
+    await manualPage.fill("#actual", "Save button does nothing");
+    assert.match(await manualPage.textContent("#preview"), /\*\*What happened:\*\* Save button does nothing/);
+
+    const [saved] = await savedReports();
+    assert.equal(saved.manual, true);
+    assert.deepEqual([saved.console.length, saved.network.length, saved.breadcrumbs.length], [0, 0, 0]);
+    assert.equal(saved.hasScreenshot, true);
+    await manualPage.close();
+  });
+
+  await check("nothing detected: a healthy picked element is mentioned and kept in the manual report", async () => {
+    await cleanPage.bringToFront();
+    const started = await worker.evaluate((tabId) => globalThis.BugDetector.startPicker(tabId), (await cleanTab()).id);
+    assert.equal(started.ok, true);
+    await cleanPage.locator("bug-detector-picker").waitFor({ state: "attached" });
+    const box = await cleanPage.locator("#fetch-ok").boundingBox();
+    await cleanPage.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await cleanPage.waitForTimeout(100);
+    await cleanPage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+    await asking.waitFor({ state: "attached" });
+    await useToast(cleanPage, (toast) => {
+      assert.match(toast.detail, /the element you selected \(<button> "GET \/api\/ok.*"\) is visible, enabled and not covered/);
+      assert.match(toast.detail, /only a screenshot, the element and your environment details/);
+    });
+
+    const opened = context.waitForEvent("page");
+    await useToast(cleanPage, (toast) => toast.click("Continue anyway"));
+    const manualPage = await opened;
+    await manualPage.waitForSelector("#layout:not([hidden])", { timeout: 10000 });
+    const text = await manualPage.textContent("#preview");
+    assert.match(text, /\*\*Issues detected:\*\* 0/);
+    assert.match(text, /### Selected element\n\n`#fetch-ok`/);
+    assert.match(text, /No obvious problems detected/);
+    assert.doesNotMatch(text, /Failed requests|Console errors|Steps before the bug/);
+    const [saved] = await savedReports();
+    assert.equal(saved.annotations.length, 1, "the element is boxed in the screenshot");
+    await manualPage.close();
+  });
+
+  await check("nothing detected but the picked element is broken: no question, normal report", async () => {
+    await cleanPage.bringToFront();
+    const started = await worker.evaluate((tabId) => globalThis.BugDetector.startPicker(tabId), (await cleanTab()).id);
+    assert.equal(started.ok, true);
+    await cleanPage.locator("bug-detector-picker").waitFor({ state: "attached" });
+    const box = await cleanPage.locator("#pay-now").boundingBox();
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await cleanPage.mouse.move(x, y);
+    await cleanPage.waitForTimeout(100);
+    await cleanPage.keyboard.press("ArrowDown");
+    const opened = context.waitForEvent("page");
+    await cleanPage.mouse.click(x, y);
+
+    const reportPage = await opened;
+    await reportPage.waitForSelector("#layout:not([hidden])", { timeout: 10000 });
+    const text = await reportPage.textContent("#preview");
+    assert.match(text, /Covered by \[data-testid="ghost-overlay"\]/);
+    assert.doesNotMatch(text, /Issues detected/);
+    assert.match(text, /Steps before the bug/);
+    assert.equal(await asking.count(), 0);
+    await reportPage.close();
+  });
+
+  await check("nothing detected but the page can't show the question (older script): capture goes ahead", async () => {
+    // Simulates a tab whose content script predates the question and never answers it.
+    await worker.evaluate(() => {
+      const original = chrome.tabs.sendMessage.bind(chrome.tabs);
+      globalThis.__originalSendMessage = chrome.tabs.sendMessage;
+      chrome.tabs.sendMessage = (tabId, message, ...rest) =>
+        message?.type === "bd/no-issues" ? Promise.resolve(undefined) : original(tabId, message, ...rest);
+    });
+    try {
+      const opened = context.waitForEvent("page");
+      const result = await captureClean();
+      assert.equal(result.ok, true, JSON.stringify(result));
+      const reportPage = await opened;
+      await reportPage.waitForSelector("#layout:not([hidden])", { timeout: 10000 });
+      await reportPage.close();
+    } finally {
+      await worker.evaluate(() => { chrome.tabs.sendMessage = globalThis.__originalSendMessage; });
+    }
+    await useToast(cleanPage, (toast) => toast.click("Cancel")).catch(() => {});
+  });
+
+  await check("site switched off: capture still asks, says so honestly, and the report says 'not checked'", async () => {
+    const setBlocked = (blocked) => worker.evaluate(async ([host, on]) => {
+      const { settings } = await chrome.storage.sync.get("settings");
+      await chrome.storage.sync.set({ settings: { ...settings, blocklist: on ? [host] : [] } });
+    }, [new URL(cleanUrl).hostname, blocked]);
+
+    await setBlocked(true);
+    try {
+      await cleanPage.waitForTimeout(500); // the page picks up the new setting
+      assert.deepEqual(await captureClean(), { ok: false, reason: "no-issues" });
+      await asking.waitFor({ state: "attached" });
+      await useToast(cleanPage, (toast) => {
+        assert.equal(toast.title, "BugDetector is off on this site");
+        assert.match(toast.detail, /isn't checking this site for errors or failed requests, so it can't tell whether anything is wrong/);
+        assert.match(toast.detail, /only a screenshot and your environment details/);
+        assert.deepEqual(toast.buttons, ["×", "Continue anyway", "Cancel"]);
+      });
+      if (shotsDir) {
+        await cleanPage.waitForTimeout(300);
+        await cleanPage.screenshot({ path: join(shotsDir, "11-site-off.png") });
+      }
+
+      const opened = context.waitForEvent("page");
+      await useToast(cleanPage, (toast) => toast.click("Continue anyway"));
+      const reportPage = await opened;
+      await reportPage.waitForSelector("#layout:not([hidden])", { timeout: 10000 });
+      const text = await reportPage.textContent("#preview");
+      assert.match(text, /\*\*Issues detected:\*\* not checked \(BugDetector is turned off on this site\)/);
+      assert.doesNotMatch(text, /Issues detected:\*\* 0|Failed requests|Console errors|Steps before the bug|disabled on this site/);
+      assert.match(text, /### Environment/);
+      assert.match(await reportPage.textContent("#summary"), /Not checked/);
+      await reportPage.close();
+    } finally {
+      await setBlocked(false);
+      await cleanPage.waitForTimeout(300);
+    }
+  });
+
+  await check("an error that happens while the question is open makes it a normal report", async () => {
+    assert.equal((await captureClean()).reason, "no-issues");
+    await asking.waitFor({ state: "attached" });
+    await cleanPage.click("#throw-error");
+    await cleanPage.waitForTimeout(200);
+
+    const opened = context.waitForEvent("page");
+    await useToast(cleanPage, (toast) => toast.click("Continue anyway"));
+    const reportPage = await opened;
+    await reportPage.waitForSelector("#layout:not([hidden])", { timeout: 10000 });
+    const text = await reportPage.textContent("#preview");
+    assert.match(text, /TypeError: Cannot read properties of undefined \(reading 'total'\)/);
+    assert.doesNotMatch(text, /Issues detected/);
+    await reportPage.close();
+  });
 } finally {
   await context.close();
   server.close();

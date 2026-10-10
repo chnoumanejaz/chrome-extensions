@@ -42,6 +42,7 @@ body { min-height: 100vh; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.summary .manual-note { flex-basis: 100%; margin: 4px 0 0; }
 #warnings { display: grid; gap: 8px; }
 #warnings:not(:empty) { margin-top: 12px; }
 

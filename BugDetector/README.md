@@ -36,6 +36,8 @@ Pages that were already open when you installed the extension are injected autom
 | **Select broken element** | Press **Alt+Shift+E**, click **Pick element** on the "Bug detected" popup, or use the toolbar popup. Hover to highlight, then click the element that's broken. **↑** selects the parent, **↓** the element underneath (useful when an invisible overlay is in the way), and **Esc** cancels. The page doesn't react to these clicks. The element gets a red box in the screenshot and a "Selected element" section in the report. |
 | **Toolbar popup** | Click the extension icon, then **Capture bug** or **Select broken element**. The popup also shows the issues on this page, recent reports, and quick toggles. |
 
+**When nothing is detected.** If you press **Capture bug** or pick an element and BugDetector hasn't seen any errors or failed requests (console warnings count only when your alert level is "all", the same bar as the popup) and the element you picked looks fine, it says **"No issues detected"** instead of silently producing an empty report. **Cancel** saves nothing. **Continue anyway** files a *manual* report: it contains only your screenshot, the element you picked (if any) and the environment, plus an `Issues detected: 0` line. The failed-requests, console and steps sections are left out, and the description field is focused so you can write the rest yourself. On a site where **Active on this site** is off you get the same question, worded honestly ("BugDetector is off on this site", since it isn't checking), and the manual report says `Issues detected: not checked` instead of `0`. Pages BugDetector can't inspect at all (browser pages, the Web Store, PDFs) capture as before, because there's nothing on the page to ask through.
+
 The capture opens a **report page** next to the tab. On that page you can:
 
 - edit the title and add "What happened / What I expected"
@@ -128,12 +130,12 @@ BugDetector/
 ├── manifest.json            MV3 · module service worker · Alt+Shift+D / Alt+Shift+E commands
 ├── background/
 │   ├── service-worker.js    wires commands, messages, badge, injection into open tabs
-│   ├── capture.js           snapshot → screenshot → build → redact → store → open report
+│   ├── capture.js           snapshot → (nothing found? ask) → screenshot → build → redact → store → open report
 │   └── network-monitor.js   chrome.webRequest failures per tab (chrome.storage.session)
 ├── content/
 │   ├── page-hook.js         MAIN world: wraps fetch/XHR/console, listens to error events
 │   ├── collector.js         isolated world: ring buffers, breadcrumbs, toast logic, snapshot
-│   ├── toast.js             closed shadow-DOM toast with adoptedStyleSheets
+│   ├── toast.js             closed shadow-DOM toast ("Bug detected" / "No issues detected") with adoptedStyleSheets
 │   ├── picker.js            "select the broken element" overlay (↑ parent, ↓ underneath)
 │   └── element-inspector.js unique selector, safe HTML, styles, "covered by…" diagnostics
 ├── shared/                  "universal" scripts: content scripts AND side-effect ES modules

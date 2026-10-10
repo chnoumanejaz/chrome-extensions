@@ -6,7 +6,7 @@
  */
 import { Msg } from "../lib/messages.js";
 import { getSettings } from "../lib/settings.js";
-import { buildReport } from "../lib/report-model.js";
+import { buildReport, hasNoIssues } from "../lib/report-model.js";
 import { redactReport } from "../lib/redact.js";
 import { saveReport } from "../lib/report-store.js";
 import { getTabRequests } from "./network-monitor.js";
@@ -45,7 +45,21 @@ function explain(error) {
   return `Page details unavailable: ${message}`;
 }
 
-async function runCapture(tab) {
+/**
+ * Tells the page nothing was detected so it can ask whether to file a report
+ * anyway. The picked element travels along because the snapshot consumed it;
+ * the page keeps it for the follow-up request.
+ *
+ * @returns {Promise<boolean>} false when the page didn't take the question (for
+ *   example a tab still running an older content script), so nobody is left waiting
+ */
+async function askAboutEmptyCapture(tabId, element) {
+  const answer = await chrome.tabs.sendMessage(tabId, { type: Msg.NO_ISSUES, element }, { frameId: 0 }).catch(() => null);
+  return answer === true;
+}
+
+/** @returns {Promise<string|null>} the report id, or null when the user is being asked about an empty capture */
+async function runCapture(tab, { force }) {
   const settings = await getSettings();
   const warnings = [];
   const createdAt = Date.now();
@@ -57,6 +71,14 @@ async function runCapture(tab) {
     warnings.push(explain(error));
   }
 
+  const webRequests = await getTabRequests(tab.id).catch(() => []);
+
+  let nothingDetected = hasNoIssues(snapshot, webRequests, settings);
+  if (nothingDetected && !force) {
+    if (await askAboutEmptyCapture(tab.id, snapshot.element)) return null;
+    nothingDetected = false; // can't ask: capture as usual rather than doing nothing
+  }
+
   let screenshot = null;
   try {
     screenshot = await takeScreenshot(tab.windowId);
@@ -66,8 +88,6 @@ async function runCapture(tab) {
     chrome.tabs.sendMessage(tab.id, { type: Msg.CAPTURE_FINISHED }, { frameId: 0 }).catch(() => {});
   }
 
-  const webRequests = await getTabRequests(tab.id).catch(() => []);
-
   const report = redactReport(buildReport({
     id: crypto.randomUUID(),
     createdAt,
@@ -76,7 +96,8 @@ async function runCapture(tab) {
     webRequests,
     settings,
     warnings,
-    hasScreenshot: Boolean(screenshot)
+    hasScreenshot: Boolean(screenshot),
+    manual: nothingDetected
   }), settings);
 
   await saveReport(report, screenshot, { keep: settings.maxReports });
@@ -92,14 +113,15 @@ async function runCapture(tab) {
 
 /**
  * @param {chrome.tabs.Tab} tab
+ * @param {{ force?: boolean }} [options]  force: capture even if nothing was detected
  * @returns {Promise<import("../lib/messages.js").CaptureResult>}
  */
-export async function captureTab(tab) {
+export async function captureTab(tab, { force = false } = {}) {
   if (!tab?.id) return { ok: false, error: "No tab to capture" };
   if (inFlight.has(tab.id)) return inFlight.get(tab.id);
 
-  const job = runCapture(tab)
-    .then((reportId) => ({ ok: true, reportId }))
+  const job = runCapture(tab, { force })
+    .then((reportId) => (reportId ? { ok: true, reportId } : { ok: false, reason: "no-issues" }))
     .catch((error) => {
       console.error("BugDetector capture failed:", error);
       return { ok: false, error: error?.message || String(error) };

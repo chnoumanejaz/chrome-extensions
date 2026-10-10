@@ -89,6 +89,55 @@ export function mergeNetwork(hookEntries = [], webEntries = [], { since = 0, ign
     .slice(-MAX_NETWORK);
 }
 
+/** What third parties use for tracking pixels, beacons and ad frames. */
+const BACKGROUND_TYPES = new Set(["image", "ping", "media", "other", "xmlhttprequest", "sub_frame"]);
+
+/** "static.files.bbci.co.uk" → "co.uk"-level approximation; errs towards "same site", i.e. towards reporting. */
+function siteOf(url) {
+  return new URL(url).hostname.split(".").slice(-2).join(".");
+}
+
+/**
+ * A failure only the browser saw, from another site, for something a visitor
+ * never notices (tracker pixels, beacons, ad iframes). A report that's filed
+ * anyway still lists it, but it's no reason to say something is wrong with the
+ * page. Scripts, stylesheets and fonts from other sites do break pages, so they count.
+ */
+function isBackgroundNoise(entry, pageUrl) {
+  if (entry.initiator !== "webRequest" || !BACKGROUND_TYPES.has(entry.resourceType)) return false;
+  try {
+    return siteOf(entry.url) !== siteOf(pageUrl);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when detection ran and found nothing worth reporting: no console
+ * errors, no failed requests (as seen by the page or the browser) and no
+ * problem with the element the user picked (tracker noise doesn't count). Console warnings only count when
+ * the alert level is "all", the same bar the "Bug detected" popup uses, so
+ * this is true exactly when the user saw no alert. On a site where BugDetector
+ * is switched off the page itself isn't watched, so only what the browser saw
+ * (and the picked element) can count. A page BugDetector couldn't reach at all
+ * never counts: there's nobody to ask.
+ *
+ * @param {import("./messages.js").PageSnapshot|null} snapshot
+ * @param {import("./messages.js").NetworkEntry[]} webRequests
+ * @param {{ ignoreUrlPatterns: string[], sensitivity?: string }} settings
+ */
+export function hasNoIssues(snapshot, webRequests, settings) {
+  if (!snapshot) return false;
+  const network = mergeNetwork(snapshot.network, webRequests, {
+    since: snapshot.page.timeOrigin || 0,
+    ignoreUrlPatterns: settings.ignoreUrlPatterns
+  });
+  const countsWarnings = settings.sensitivity === "all";
+  const problems = snapshot.console.filter((entry) => entry.level === "error" || countsWarnings);
+  const failures = network.filter((entry) => !isBackgroundNoise(entry, snapshot.page.url));
+  return !problems.length && !failures.length && !snapshot.element?.issues?.length;
+}
+
 function shortPath(url) {
   try {
     const parsed = new URL(url);
@@ -156,13 +205,17 @@ export function elementAnnotations(element) {
  * @param {{ ignoreUrlPatterns: string[] }} input.settings
  * @param {string[]} [input.warnings]
  * @param {boolean} [input.hasScreenshot]
+ * @param {boolean} [input.manual]   nothing was detected and the user chose to file a report anyway:
+ *                                   the report keeps only the environment (and the picked element),
+ *                                   the user writes the rest. On a site where BugDetector is off the
+ *                                   report says "not checked" instead of "0 issues"
  */
-export function buildReport({ id, createdAt, tab, snapshot, webRequests, settings, warnings = [], hasScreenshot = false }) {
+export function buildReport({ id, createdAt, tab, snapshot, webRequests, settings, warnings = [], hasScreenshot = false, manual = false }) {
   const env = snapshot?.env || {};
   const { browser, os } = parseEnvironment(env);
   const notes = [...warnings];
 
-  if (snapshot && !snapshot.siteEnabled) {
+  if (snapshot && !snapshot.siteEnabled && !manual) {
     notes.push("BugDetector is disabled on this site, so only the screenshot and failed requests seen by the browser were captured.");
   }
 
@@ -170,6 +223,8 @@ export function buildReport({ id, createdAt, tab, snapshot, webRequests, setting
     id,
     version: 1,
     createdAt,
+    manual,
+    detectionOff: Boolean(manual && snapshot && !snapshot.siteEnabled),
     title: "",
     description: { actual: "", expected: "" },
     page: {
@@ -190,12 +245,12 @@ export function buildReport({ id, createdAt, tab, snapshot, webRequests, setting
       online: env.online ?? null,
       colorScheme: env.colorScheme || null
     },
-    console: snapshot?.console || [],
+    console: manual ? [] : snapshot?.console || [],
     network: mergeNetwork(snapshot?.network, webRequests, {
       since: snapshot?.page.timeOrigin || 0,
       ignoreUrlPatterns: settings.ignoreUrlPatterns
     }),
-    breadcrumbs: snapshot?.breadcrumbs || [],
+    breadcrumbs: manual ? [] : snapshot?.breadcrumbs || [],
     element: snapshot?.element || null,
     annotations: hasScreenshot ? elementAnnotations(snapshot?.element) : [],
     triage: null,

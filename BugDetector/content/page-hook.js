@@ -188,8 +188,9 @@
   window.addEventListener("error", (event) => {
     const target = event.target;
     if (target && target !== window && target instanceof Element) {
-      const url = target.currentSrc || target.src || target.href || "";
-      if (url) emit("resource", { tag: target.tagName.toLowerCase(), url: resolveUrl(url) });
+      const url = resolveUrl(target.currentSrc || target.src || target.href || "");
+      // An empty src resolves to the page itself; that's a placeholder, not a missing file.
+      if (url && url !== location.href) emit("resource", { tag: target.tagName.toLowerCase(), url });
       return;
     }
     emit("error", {

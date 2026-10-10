@@ -19,8 +19,10 @@
       PREPARE_CAPTURE: "bd/prepare-capture",
       /** SW → collector: capture finished (ok or failed); restore UI state. */
       CAPTURE_FINISHED: "bd/capture-finished",
-      /** collector/popup → SW: capture a report for a tab. */
+      /** collector/popup → SW: capture a report for a tab. `force` skips the "no issues found" check. */
       CAPTURE_REQUEST: "bd/capture-request",
+      /** SW → collector: nothing was detected; ask the user whether to file a manual report anyway. */
+      NO_ISSUES: "bd/no-issues",
       /** popup → collector: counts for the current page. */
       GET_STATS: "bd/get-stats",
       /** collector → SW: number of detected issues, shown on the toolbar badge. */

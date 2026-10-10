@@ -35,9 +35,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
     case Msg.CAPTURE_REQUEST: {
       // From the in-page toast (sender.tab) or the popup (explicit tabId).
+      const options = { force: message.force === true };
       const job = message.tabId
-        ? chrome.tabs.get(message.tabId).then(captureTab)
-        : captureTab(sender.tab);
+        ? chrome.tabs.get(message.tabId).then((tab) => captureTab(tab, options))
+        : captureTab(sender.tab, options);
       job.then(sendResponse, (error) => sendResponse({ ok: false, error: String(error?.message || error) }));
       return true;
     }

@@ -1,4 +1,4 @@
-import { FORMATS, SECTIONS, formatReport, formatTimestamp } from "../lib/report-format.js";
+import { DETECTED_SECTIONS, FORMATS, SECTIONS, formatReport, formatTimestamp } from "../lib/report-format.js";
 import { getReport, updateReport, deleteReport } from "../lib/report-store.js";
 import { renderComposite } from "../lib/annotations.js";
 import { getSettings, updateSettings, getApiKey } from "../lib/settings.js";
@@ -8,7 +8,11 @@ import { setupTriage } from "./triage.js";
 
 const PREFS_KEY = "reportPrefs";
 /** Sections that only exist for some reports; their toggles are hidden otherwise. */
-const OPTIONAL_SECTIONS = { triage: (report) => Boolean(report.triage), element: (report) => Boolean(report.element) };
+const OPTIONAL_SECTIONS = {
+  triage: (report) => Boolean(report.triage),
+  element: (report) => Boolean(report.element),
+  ...Object.fromEntries(DETECTED_SECTIONS.map((id) => [id, (report) => !report.manual]))
+};
 const FILE_EXTENSIONS = { markdown: "md", slack: "txt", text: "txt", ai: "md", json: "json" };
 const COPY_LABELS = { ai: "Copy AI prompt", json: "Copy JSON" };
 
@@ -93,12 +97,21 @@ async function init(record) {
   const warnCount = report.console.length - errorCount;
   const chip = (count, label, alert) =>
     h("span", { className: `chip${alert && count ? " alert" : ""}` }, h("strong", {}, String(count)), ` ${label}`);
-  els.summary.append(
-    chip(report.network.length, report.network.length === 1 ? "failed request" : "failed requests", true),
-    chip(errorCount, errorCount === 1 ? "console error" : "console errors", true),
-    chip(warnCount, warnCount === 1 ? "warning" : "warnings", false),
-    chip(report.breadcrumbs.length, report.breadcrumbs.length === 1 ? "step" : "steps", false)
-  );
+  if (report.manual) {
+    els.summary.append(
+      report.detectionOff ? h("span", { className: "chip" }, "Not checked") : chip(0, "issues detected", false),
+      h("p", { className: "manual-note small muted" }, report.detectionOff
+        ? "BugDetector is turned off on this site, so nothing was checked automatically. This report holds only your environment details. Describe what went wrong below."
+        : "Nothing was detected automatically, so this report holds only your environment details. Describe what went wrong below.")
+    );
+  } else {
+    els.summary.append(
+      chip(report.network.length, report.network.length === 1 ? "failed request" : "failed requests", true),
+      chip(errorCount, errorCount === 1 ? "console error" : "console errors", true),
+      chip(warnCount, warnCount === 1 ? "warning" : "warnings", false),
+      chip(report.breadcrumbs.length, report.breadcrumbs.length === 1 ? "step" : "steps", false)
+    );
+  }
   for (const warning of report.warnings || []) {
     els.warnings.append(h("p", { className: "notice" }, warning));
   }
@@ -283,4 +296,6 @@ async function init(record) {
   syncOptionalToggles();
   render();
   els.layout.hidden = false;
+  // The description is the whole point of a manual report.
+  if (report.manual && !els.actual.value) els.actual.focus();
 }

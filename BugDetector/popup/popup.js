@@ -148,7 +148,8 @@ els.capture.addEventListener("click", async () => {
   const result = await chrome.runtime.sendMessage({ type: Msg.CAPTURE_REQUEST, tabId: tab?.id })
     .catch((error) => ({ ok: false, error: error.message }));
 
-  if (result?.ok) {
+  // Nothing detected: the page now asks whether to capture anyway, so get out of its way.
+  if (result?.ok || result?.reason === "no-issues") {
     window.close();
     return;
   }

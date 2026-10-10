@@ -8,8 +8,11 @@
 const MAX_PER_TAB = 50;
 const keyFor = (tabId) => `net:${tabId}`;
 
-/** Ignorable error codes: user/page navigations cancel requests all the time. */
-const IGNORED_ERRORS = new Set(["net::ERR_ABORTED", "net::ERR_BLOCKED_BY_CLIENT"]);
+/**
+ * Ignorable error codes: navigations cancel requests all the time, and Chrome
+ * reports ERR_CACHE_MISS for font/resource preloads that load fine.
+ */
+const IGNORED_ERRORS = new Set(["net::ERR_ABORTED", "net::ERR_BLOCKED_BY_CLIENT", "net::ERR_CACHE_MISS"]);
 
 // Serialises read-modify-write per tab so concurrent events don't overwrite each other.
 const queues = new Map();

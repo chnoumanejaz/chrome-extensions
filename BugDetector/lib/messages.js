@@ -3,8 +3,10 @@ import "../shared/protocol.js";
 /**
  * ES-module view of the shared protocol, plus payload typedefs.
  *
- * @typedef {{ type: string, tabId?: number }} CaptureRequest
- * @typedef {{ ok: true, reportId: string } | { ok: false, error: string }} CaptureResult
+ * @typedef {{ type: string, tabId?: number, force?: boolean }} CaptureRequest
+ * @typedef {{ ok: true, reportId: string }
+ *   | { ok: false, error: string }
+ *   | { ok: false, reason: "no-issues" }} CaptureResult
  * @typedef {{ type: string, count: number }} BadgeUpdate
  * @typedef {{ host: string, hostname: string, enabled: boolean, muted: boolean,
  *             stats: { errors: number, warnings: number, failedRequests: number } }} PageStats

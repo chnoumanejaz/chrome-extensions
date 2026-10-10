@@ -183,3 +183,54 @@ test("triage and element sections render only when present", () => {
   const noTriage = formatReport(sampleReport({ triage: TRIAGE }), { sections: ["network"] });
   assert.doesNotMatch(noTriage, /AI triage/);
 });
+
+test("a manual report shows the environment and 'Issues detected: 0', and nothing detected", () => {
+  const manual = sampleReport({
+    manual: true, console: [], network: [], breadcrumbs: [],
+    title: "Bug on shop.test", description: { actual: "Save does nothing", expected: "" }
+  });
+
+  const md = formatReport(manual);
+  assert.match(md, /\*\*Issues detected:\*\* 0 \(nothing was found automatically/);
+  assert.match(md, /\*\*What happened:\*\* Save does nothing/);
+  assert.match(md, /### Environment/);
+  assert.doesNotMatch(md, /Failed requests|Console errors|Steps before the bug|None captured/);
+
+  const text = formatReport(manual, { format: "text" });
+  assert.match(text, /^Issues detected: 0 \(/m);
+  assert.doesNotMatch(text, /FAILED REQUESTS|CONSOLE ERRORS|STEPS BEFORE/);
+
+  const json = JSON.parse(formatReport(manual, { format: "json" }));
+  assert.equal(json.issuesDetected, 0);
+  assert.equal(json.network, undefined);
+  assert.equal(json.console, undefined);
+  assert.equal(json.steps, undefined);
+  assert.equal(json.environment.browser, "Chrome 141");
+
+  const ai = formatReport(manual, { format: "ai" });
+  assert.match(ai, /found no errors or failed requests/);
+  assert.doesNotMatch(ai, /evidence captured automatically/);
+
+  assert.doesNotMatch(formatReport(sampleReport()), /Issues detected/, "automatic reports are unchanged");
+});
+
+test("a manual report from a site where BugDetector is off says 'not checked', never '0'", () => {
+  const off = sampleReport({ manual: true, detectionOff: true, console: [], network: [], breadcrumbs: [] });
+
+  const md = formatReport(off);
+  assert.match(md, /\*\*Issues detected:\*\* not checked \(BugDetector is turned off on this site\)/);
+  assert.doesNotMatch(md, /Issues detected:\*\* 0/);
+
+  const json = JSON.parse(formatReport(off, { format: "json" }));
+  assert.equal(json.issuesDetected, null);
+  assert.equal(json.detectionOff, true);
+
+  const ai = formatReport(off, { format: "ai" });
+  assert.match(ai, /turned off on this site when I reported this, so no errors or failed requests were checked/);
+  assert.doesNotMatch(ai, /found no errors/);
+});
+
+test("a manual report still includes the element the user picked", () => {
+  const md = formatReport(sampleReport({ manual: true, console: [], network: [], breadcrumbs: [], element: ELEMENT }));
+  assert.match(md, /### Selected element\n\n`#place-order` "Place order"/);
+});
