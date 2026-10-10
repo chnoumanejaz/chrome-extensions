@@ -42,6 +42,12 @@ const FormPilotAutofill = (() => {
     element.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function setSelectValue(element, value) {
+    element.value = String(value);
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   function queryWithinForm(form, selector) {
     if (!selector) return null;
     try {
@@ -155,9 +161,7 @@ const FormPilotAutofill = (() => {
     }
 
     if (element.tagName === "SELECT") {
-      element.value = String(savedField.value);
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-      element.dispatchEvent(new Event("change", { bubbles: true }));
+      setSelectValue(element, savedField.value);
       return { status: "filled" };
     }
 
@@ -193,10 +197,76 @@ const FormPilotAutofill = (() => {
     return summary;
   }
 
+  /** Fills in whatever a profile is missing from what it has: full name <-> first + last. */
+  function withDerivedNames(values) {
+    const result = { ...values };
+    if (!result.fullName && (result.firstName || result.lastName)) {
+      result.fullName = [result.firstName, result.lastName].filter(Boolean).join(" ");
+    }
+    if (result.fullName && !result.firstName && !result.lastName) {
+      const [first, ...rest] = result.fullName.split(/\s+/);
+      result.firstName = first;
+      if (rest.length) result.lastName = rest.join(" ");
+    }
+    return result;
+  }
+
+  /** Picks the <option> that best matches a value, by value or visible text. */
+  function findMatchingOption(select, wanted) {
+    const target = String(wanted).trim().toLowerCase();
+    const options = Array.from(select.options).filter((option) => option.value !== "" && !option.disabled);
+    const text = (option) => option.textContent.trim().toLowerCase();
+
+    return (
+      options.find((option) => option.value.toLowerCase() === target || text(option) === target) ||
+      options.find((option) => text(option).startsWith(target) || target.startsWith(text(option))) ||
+      null
+    );
+  }
+
+  const PROFILE_SKIPPED_TYPES = new Set(["checkbox", "radio", "file", "password", "range", "color"]);
+
+  /**
+   * Fills fields in a form (or formless group) from a global profile, matching
+   * each field to a profile value by what it looks like. Never submits.
+   */
+  function fillFromProfile(container, profileValues) {
+    const values = withDerivedNames(profileValues);
+    let filled = 0;
+
+    for (const field of FormPilotDetector.getUsableFields(container)) {
+      const type = FormPilotFingerprint.getFieldType(field);
+      if (PROFILE_SKIPPED_TYPES.has(type)) continue;
+
+      const key = FormPilotFieldTypes.classify(FormPilotFingerprint.buildFieldMetadata(field, 0));
+      const value = key ? values[key] : "";
+      if (!value) continue;
+
+      if (field.tagName === "SELECT") {
+        const option = findMatchingOption(field, value);
+        if (!option) continue;
+        setSelectValue(field, option.value);
+      } else if (type === "number" && !/^\d+$/.test(value)) {
+        continue;
+      } else if (type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        continue;
+      } else {
+        setNativeValue(field, value);
+      }
+      filled += 1;
+    }
+
+    return { filled };
+  }
+
   return {
     setNativeValue,
+    setChecked,
+    setSelectValue,
     resolveField,
     fillField,
-    fillForm
+    fillForm,
+    fillFromProfile,
+    findMatchingOption
   };
 })();

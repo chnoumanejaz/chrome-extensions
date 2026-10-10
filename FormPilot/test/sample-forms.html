@@ -112,11 +112,35 @@
         font-size: 12px;
         margin-top: 8px;
       }
+
+      button.action {
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      #submit-log {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        margin: 0 0 20px;
+        padding: 8px 12px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 8px;
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>FormPilot Test Page</h1>
+      <p id="submit-log">No submits yet.</p>
 
       <div class="instructions">
         <strong>How to test FormPilot</strong>
@@ -128,6 +152,9 @@
           <li><strong>To save new data:</strong> click <strong>FP</strong> or <strong>+</strong>, then <strong>Save Current Form Data</strong>.</li>
           <li>Clear fields manually and click a preset chip again to verify one-click fill + submit.</li>
           <li>Repeat for all three forms — each should get its own fingerprint and presets.</li>
+          <li>When saving, choose whether the preset submits after filling. The <strong>↵</strong> mark on a chip means it submits; the log above shows every submit.</li>
+          <li>The <strong>div-based</strong> forms further down have no <code>&lt;form&gt;</code> tag. They are only detected on sites enabled under "Forms without a &lt;form&gt; tag" (localhost by default).</li>
+          <li>The <strong>Not forms</strong> block should never get a button.</li>
         </ol>
       </div>
 
@@ -217,6 +244,97 @@
         </form>
         <p class="note">Tests radio buttons, number, tel, and url fields.</p>
       </section>
+
+      <section class="form-section" id="formless-login-section">
+        <h2>Login (div-based, no &lt;form&gt; tag)</h2>
+        <div id="div-login">
+          <label for="dl-user">Username</label>
+          <input id="dl-user" name="username" type="text" placeholder="Username" />
+
+          <label for="dl-pass">Password</label>
+          <input id="dl-pass" name="password" type="password" placeholder="Password" />
+
+          <button type="button" id="dl-submit" class="action">Sign In</button>
+        </div>
+        <p class="note">Plain divs with a Sign In button. Detected only where formless detection is on.</p>
+      </section>
+
+      <section class="form-section" id="formless-signup-section">
+        <h2>Sign up (div-based, no &lt;form&gt; tag)</h2>
+        <div id="div-signup">
+          <label for="ds-first">First name</label>
+          <input id="ds-first" name="first_name" type="text" />
+
+          <label for="ds-last">Last name</label>
+          <input id="ds-last" name="last_name" type="text" />
+
+          <label for="ds-email">Email</label>
+          <input id="ds-email" name="email" type="email" />
+
+          <label for="ds-phone">Phone</label>
+          <input id="ds-phone" name="phone" type="tel" />
+
+          <label for="ds-city">City</label>
+          <input id="ds-city" name="city" type="text" />
+
+          <label for="ds-country">Country</label>
+          <select id="ds-country" name="country">
+            <option value="">Select a country</option>
+            <option value="US">United States</option>
+            <option value="GB">United Kingdom</option>
+            <option value="PK">Pakistan</option>
+          </select>
+
+          <label for="ds-pass">Password</label>
+          <input id="ds-pass" name="password" type="password" />
+
+          <label for="ds-pass2">Confirm password</label>
+          <input id="ds-pass2" name="confirm_password" type="password" />
+
+          <div class="checkbox-row">
+            <input id="ds-terms" name="terms" type="checkbox" />
+            <label for="ds-terms">I agree to the terms</label>
+          </div>
+
+          <button type="button" id="ds-submit" class="action">Create account</button>
+        </div>
+        <p class="note">Tests profile matching, random data and sensitive-field handling.</p>
+      </section>
+
+      <section class="form-section" id="not-forms-section">
+        <h2>Not forms (should never get a button)</h2>
+        <div id="div-search">
+          <input id="ns-q" name="q" type="text" placeholder="Search" />
+          <button type="button" class="action">Search</button>
+        </div>
+        <div id="div-filters" style="margin-top: 16px">
+          <div class="checkbox-row">
+            <input id="ns-a" type="checkbox" /><label for="ns-a">In stock</label>
+          </div>
+          <div class="checkbox-row">
+            <input id="ns-b" type="checkbox" /><label for="ns-b">On sale</label>
+          </div>
+          <button type="button" class="action">Apply</button>
+        </div>
+        <p class="note">One lone field, and checkboxes with an "Apply" button: neither is a proper form.</p>
+      </section>
     </div>
+
+    <script>
+      // Keep the test page on screen when something submits, and say what did.
+      window.__submits = [];
+      const log = document.getElementById("submit-log");
+      function recordSubmit(id) {
+        window.__submits.push(id);
+        log.textContent = `Last submit: ${id} (total ${window.__submits.length})`;
+      }
+      document.addEventListener("submit", (event) => {
+        event.preventDefault();
+        recordSubmit(event.target.id);
+      });
+      for (const id of ["dl-submit", "ds-submit"]) {
+        document.getElementById(id).addEventListener("click", () => recordSubmit(id));
+      }
+    </script>
   </body>
 </html>

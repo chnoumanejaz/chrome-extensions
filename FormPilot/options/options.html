@@ -11,12 +11,139 @@
       <header class="options-header">
         <h1>FormPilot Settings</h1>
         <p class="privacy">
-          All saved data stays locally in your browser. Avoid saving sensitive passwords, payment cards, or private personal data.
+          All saved data stays locally in your browser. Passwords, cards and other sensitive fields are skipped unless you choose to encrypt them.
         </p>
       </header>
 
+      <section class="card" aria-labelledby="site-rules-title">
+        <h2 id="site-rules-title" class="section-title">Where to show FormPilot</h2>
+
+        <div class="mode-options" role="radiogroup" aria-labelledby="site-rules-title">
+          <label class="mode-option">
+            <input type="radio" name="site-mode" value="all" />
+            <span>
+              <span class="mode-label">Show on all sites</span>
+              <span class="mode-desc">Except the sites you choose to hide.</span>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="site-mode" value="selected" />
+            <span>
+              <span class="mode-label">Show only on selected sites</span>
+              <span class="mode-desc">Hidden everywhere else.</span>
+            </span>
+          </label>
+        </div>
+
+        <h3 id="site-list-title" class="list-title"></h3>
+        <form id="site-form" class="site-form" novalidate>
+          <input
+            id="site-input"
+            class="site-input"
+            type="text"
+            placeholder="example.com"
+            autocomplete="off"
+            spellcheck="false"
+            aria-labelledby="site-list-title"
+          />
+          <button class="btn btn-primary btn-small" type="submit">Add site</button>
+        </form>
+        <p id="site-error" class="site-error" role="alert" hidden></p>
+        <ul id="site-list" class="site-list"></ul>
+        <p class="site-help">
+          A site also covers its subdomains: <code>example.com</code> includes <code>app.example.com</code>.
+          Ports, paths and a leading <code>www.</code> are ignored.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="formless-title">
+        <h2 id="formless-title" class="section-title">Forms without a &lt;form&gt; tag</h2>
+        <p class="card-desc">
+          Some sites build their forms from plain divs. FormPilot can detect those too, but it has to guess, so it
+          only does so on the sites you list below. A group of fields counts only if it has at least two fields and a
+          sign-in / save / submit style button, and it can't contain a real <code>&lt;form&gt;</code>.
+        </p>
+
+        <div class="mode-options" role="radiogroup" aria-labelledby="formless-title">
+          <label class="mode-option">
+            <input type="radio" name="formless-mode" value="auto" />
+            <span>
+              <span class="mode-label">Auto-detect</span>
+              <span class="mode-desc">Look for these forms on the sites below.</span>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="formless-mode" value="paused" />
+            <span>
+              <span class="mode-label">Pause detection</span>
+              <span class="mode-desc">Only forms with a &lt;form&gt; tag are detected, everywhere.</span>
+            </span>
+          </label>
+        </div>
+
+        <h3 id="formless-list-title" class="list-title">Detect on these sites</h3>
+        <form id="formless-form" class="site-form" novalidate>
+          <input
+            id="formless-input"
+            class="site-input"
+            type="text"
+            placeholder="localhost"
+            autocomplete="off"
+            spellcheck="false"
+            aria-labelledby="formless-list-title"
+          />
+          <button class="btn btn-primary btn-small" type="submit">Add site</button>
+        </form>
+        <p id="formless-error" class="site-error" role="alert" hidden></p>
+        <ul id="formless-list" class="site-list"></ul>
+        <p class="site-help">
+          Starts with <code>localhost</code> only. Sites also have to be allowed under "Where to show FormPilot".
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="privacy-title">
+        <h2 id="privacy-title" class="section-title">Sensitive fields</h2>
+        <p class="card-desc">
+          Passwords, card numbers, one-time codes and secret-looking tokens. This is the default when saving a
+          preset; you can still choose differently for each save.
+        </p>
+
+        <div class="mode-options" role="radiogroup" aria-labelledby="privacy-title">
+          <label class="mode-option">
+            <input type="radio" name="sensitive-mode" value="skip" />
+            <span>
+              <span class="mode-label">Don't save them</span>
+              <span class="mode-desc">Recommended. They stay out of storage completely.</span>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="sensitive-mode" value="encrypt" />
+            <span>
+              <span class="mode-label">Save them encrypted</span>
+              <span class="mode-desc">Protected by a passphrase you choose (AES-256). You unlock once per browser session.</span>
+            </span>
+          </label>
+        </div>
+
+        <div id="encryption-panel" class="encryption-panel" hidden></div>
+      </section>
+
+      <section class="card" aria-labelledby="profiles-title">
+        <div class="card-head">
+          <h2 id="profiles-title" class="section-title">Profiles</h2>
+          <button id="new-profile" class="btn btn-primary btn-small" type="button">New profile</button>
+        </div>
+        <p class="card-desc">
+          A profile holds your name, email, address and so on. Pick one from a form's FormPilot menu to fill any form
+          by matching each field to what it asks for.
+        </p>
+        <div id="profile-editor"></div>
+        <ul id="profile-list" class="profile-list"></ul>
+      </section>
+
       <section class="toolbar">
         <button id="clear-all" class="btn btn-danger" type="button">Clear all data</button>
+        <span class="toolbar-note">Removes saved presets and profiles. Settings are kept.</span>
       </section>
 
       <section id="forms-container" class="forms-container">
@@ -25,6 +152,14 @@
     </main>
 
     <script src="../shared/storage.js"></script>
+    <script src="../shared/site-rules.js"></script>
+    <script src="../shared/field-types.js"></script>
+    <script src="../shared/settings.js"></script>
+    <script src="../shared/profiles.js"></script>
+    <script src="../shared/crypto.js"></script>
+    <script src="site-settings.js"></script>
+    <script src="privacy.js"></script>
+    <script src="profiles.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

@@ -4,23 +4,103 @@ FormPilot is a Chrome extension that helps you save and refill form data on any 
 
 ## Features
 
-- Detects visible forms on any HTTP/HTTPS page (including localhost)
+- Detects visible forms on any HTTP/HTTPS page (including localhost), and optionally forms **without a `<form>` tag**
 - Shows a floating **FP** button on new forms, or **preset chips** when saved data exists
-- **One-click fill:** click a preset chip to fill and auto-submit
+- **Fill-only or fill-and-submit**, chosen per preset when you save it and changeable later
+- **Edit and rename presets** from the form's panel or the options page
+- **Sensitive fields** (passwords, cards, tokens) are **skipped by default**, or saved **encrypted** with a passphrase
+- **Global profiles** (name, email, address…) that fill any form by matching fields to what they ask for
+- **Random test-data generator** for QA: a consistent fake person per fill
+- **Per-site control:** hide FormPilot on specific websites, or show it only on the sites you pick
 - Supports React/Vue-style controlled inputs via native value setters and event dispatch
 - Stores everything locally in `chrome.storage.local`
+
+## Presets: fill-only vs. submit
+
+When you click **Save Current Form Data**, the save form asks for a name and whether the preset should **submit the form after filling**. It remembers your last choice as the next default (off the first time).
+
+- A chip marked **↵** (for example `↵ Admin login`) fills **and submits**. A chip without it only fills.
+- In the form's panel, each preset has a **↵** toggle to flip the mode, a **✎** to rename, and **×** to delete.
+- The options page has a full editor per preset: rename, the submit setting, and every saved value (edit or remove fields).
+- Presets saved before this feature existed keep their old behavior (fill and submit) until you change them.
+
+## Sensitive fields and encryption
+
+FormPilot treats these as sensitive: password fields, card numbers and security codes, one-time codes, and fields that look like API keys or tokens.
+
+Choose the default under **Sensitive fields** in settings. You can also override it for any single save:
+
+| Option | What happens |
+|--------|--------------|
+| **Don't save them** (default) | Sensitive fields never reach storage. Fill them yourself. |
+| **Save them encrypted** | Values are encrypted with AES-256-GCM using a key derived from your passphrase (PBKDF2-SHA256, 600,000 iterations). |
+
+Encryption details:
+
+- **The passphrase is never stored.** If you forget it, encrypted values can't be recovered. **Reset encryption** deletes the passphrase and all encrypted values.
+- You unlock once per browser session (from a form's panel, when filling an encrypted preset, or in settings). The derived key is held in memory only and is cleared when the browser closes or you press **Lock now**.
+- The crypto runs in the extension's background service worker, so page scripts and content scripts never hold the key (and it works on plain-`http` pages, where page contexts have no WebCrypto).
+- If you cancel the unlock prompt while filling, everything except the encrypted fields is still filled.
+- Field names and labels are saved unencrypted so FormPilot can find the fields again. Only the values are encrypted.
+
+## Global profiles
+
+A profile is a named set of details: full/first/last name, email, phone, website, username, company, job title, address lines, city, state, postal code, country, and birthday.
+
+1. Create profiles under **Profiles** in settings.
+2. On any form, open the FormPilot panel (**FP** or **+**), pick a profile, and click **Fill profile**.
+
+Fields are matched by what they are, not by where they sit: the HTML `autocomplete` attribute first, then the input type, then the name, id, placeholder and label. "Project name" or "Unit price" are deliberately left alone. Selects match by value or visible text ("United States" fills `US`). A profile fill never submits and never touches passwords.
+
+## Random test data
+
+**Fill with random test data** in the panel fills every visible field with believable fake data. One fake person is generated per fill, so first name, last name, email and username agree, and password and confirm-password match. Dates and numbers respect `min`, `max`, `step` and `maxlength`. Terms/consent checkboxes are ticked. Hidden fields are left alone, and card numbers and tokens are never invented.
+
+Emails use `example.com` and phone numbers use the reserved `555-01xx` range, so nothing generated belongs to a real person.
+
+## Forms without a `<form>` tag
+
+Many modern sites build forms out of plain `div`s. FormPilot can detect those, but it has to guess, so this feature is separate from normal detection and **only runs on the sites you choose (by default, just `localhost`)**.
+
+- Under **Forms without a `<form>` tag** in settings, choose **Auto-detect** or **Pause detection**, and manage the list of sites it runs on.
+- The popup has a **Detect div-based forms** switch for the current site.
+- A group of fields counts as a form only if it has **at least two distinct visible fields**, **at least one text-like field** (not just checkboxes), and a **submit-style button** (`type="submit"`, or a button saying sign in, log in, sign up, register, save, send, continue, next, checkout, and similar). It also can't contain a real `<form>`, and groups of more than 40 fields are treated as a whole page, not a form.
+- So a lone search box, or a few checkboxes with an "Apply" button, never get a button.
+- Presets, profiles, test data, encryption and fill-only/submit all work the same on these groups. Submitting clicks the group's submit button.
+- Sites must also be allowed under **Where to show FormPilot**.
+
+## Choosing Where FormPilot Shows
+
+There are two modes, set on the options page (**Settings & saved data**):
+
+| Mode | Behavior |
+|------|----------|
+| **Show on all sites** (default) | FormPilot appears everywhere except the sites on your *hidden* list |
+| **Show only on selected sites** | FormPilot appears only on the sites on your *selected* list |
+
+Each mode keeps its own list, so switching modes never loses the other list.
+
+- **Quick toggle:** open the toolbar popup and flip **Show on this site**. It edits the list for the active mode and takes effect immediately, with no page reload.
+- **Manage lists:** add or remove sites on the options page.
+- **Matching:** a site covers its subdomains (`example.com` includes `app.example.com`). Ports, paths and a leading `www.` are ignored, so `localhost` covers every local port.
+- Where FormPilot is off, the content script does no scanning at all.
+- Saved presets are never deleted when a site is hidden, and **Clear all data** removes presets and profiles but leaves your settings and site lists alone.
 
 ## Project Structure
 
 ```
 FormPilot/
 ├── manifest.json
-├── background.js
+├── background.js            # Service worker: encryption service (message handler)
+├── background/
+│   └── crypto-core.js       # PBKDF2 + AES-GCM, session key cache
 ├── content/
-│   ├── content.js          # Orchestrator, floating UI, save/fill logic
-│   ├── detector.js         # Form visibility detection + MutationObserver
+│   ├── content.js          # Orchestrator, floating UI, panel, save/fill logic
+│   ├── detector.js         # Form + formless-group detection, MutationObserver
 │   ├── fingerprint.js      # Form fingerprinting and selector generation
-│   ├── autofill.js         # Field matching and value filling
+│   ├── autofill.js         # Field matching, value filling, profile fill
+│   ├── test-data.js        # Random test-data generator
+│   ├── dialogs.js          # In-page passphrase dialog (Shadow DOM)
 │   └── floating-button.css
 ├── popup/
 │   ├── popup.html
@@ -28,10 +108,18 @@ FormPilot/
 │   └── popup.css
 ├── options/
 │   ├── options.html
-│   ├── options.js
+│   ├── options.js          # Saved forms + preset editor
+│   ├── site-settings.js    # Site lists and formless detection settings
+│   ├── privacy.js          # Sensitive-field mode and encryption panel
+│   ├── profiles.js         # Profile editor
 │   └── options.css
 ├── shared/
-│   └── storage.js
+│   ├── storage.js          # Forms storage helpers (popup/options)
+│   ├── site-rules.js       # Hidden/selected/formless site lists + host matching
+│   ├── field-types.js      # Field classification + sensitive-field detection
+│   ├── settings.js         # General settings
+│   ├── profiles.js         # Profile storage
+│   └── crypto.js           # Client for the encryption service
 ├── icons/
 │   ├── icon16.png
 │   ├── icon48.png
@@ -50,29 +138,29 @@ FormPilot/
 
 ## How to Test
 
-### Option A: Use the built-in test page
+Content scripts run on `http`/`https` pages only, so serve the test page over HTTP rather than opening it from the extension:
 
-1. Click the FormPilot extension icon in the toolbar
-2. Click **Open test page**
-3. You should see three forms, each with a blue **FP** button in the top-right corner
+```
+cd FormPilot/test && python3 -m http.server 8000
+# then open http://localhost:8000/sample-forms.html
+```
 
-### Option B: Open the test file directly
-
-Open `test/sample-forms.html` in Chrome (via the extension popup or as a file URL).
+The page has three normal forms, two div-based groups (a login and a sign-up) and a "Not forms" block that should never get a button. A log at the top records every submit.
 
 ### Test workflow
 
-1. Fill in fields on the **Login** form
-2. Click **FP** → **Save Current Form Data** and name the preset (e.g. "Admin Login")
-3. The FP button becomes a **preset chip** showing your saved name
-4. Clear the form fields manually
-5. Click the **Admin Login** chip — fields fill and the form auto-submits
-6. Repeat for the Contact and Survey forms — each form gets its own preset chips
+1. Fill in the **Login** form (email and password)
+2. Click **FP** → **Save Current Form Data**, name the preset, leave **Submit the form after filling** off, and keep "Don't save them" for the password
+3. The FP button becomes a **preset chip**. Clear the fields and click it: the fields fill and the log stays empty
+4. Open the panel (**+**) and click **↵** on the preset. The chip now reads `↵ …` and clicking it fills and submits
+5. On the **div-based sign-up** group: pick **Fill with random test data**, or create a profile in settings and use **Fill profile**
+6. Switch **Sensitive fields** to **Save them encrypted** in settings, save the sign-up group again, then lock encryption and click its chip to see the passphrase prompt
+7. In the popup, flip **Detect div-based forms** off and the div-based widgets disappear without a reload
 
 ### Verify storage
 
 - Open the extension popup to see form/preset counts
-- Click **Manage saved data** to view or delete saved presets
+- Click **Settings & saved data** to view, edit or delete saved presets
 
 ## How Form Fingerprinting Works
 
@@ -84,12 +172,12 @@ Each form gets a stable fingerprint built from:
 |-----------|---------|
 | Page origin | `https://example.com` |
 | Pathname | `/login` |
-| Form index | `0`, `1`, `2` (position among all `<form>` elements) |
+| Form index | `0`, `1`, `2` (position among all `<form>` elements, or among detected div-based groups) |
 | Form attributes | `id`, `name`, `class`, `action`, `method` |
 | Context | Nearby heading text, submit button text |
 | Field metadata | For each field: tag, type, name, id, class, placeholder, label, aria-label, autocomplete, index |
 
-These values are normalized, serialized to JSON, and hashed into a short base-36 string (e.g. `a83kd92k`).
+These values are normalized, serialized to JSON, and hashed into a short base-36 string (e.g. `a83kd92k`). Div-based groups add a marker to the hash, so they never collide with real forms, and fingerprints of real forms are unchanged.
 
 **Storage key format:**
 
@@ -127,18 +215,20 @@ Missing fields are skipped gracefully — the extension will not crash.
 - No backend server
 - No analytics or tracking
 - No external API calls
-- Avoid saving sensitive passwords, payment cards, or private personal data
+- Sensitive fields are not saved unless you choose to encrypt them
+- Non-sensitive values (names, emails, addresses) are stored unencrypted in `chrome.storage.local`
 
 ## Known Limitations
 
-1. **Requires `<form>` elements** — div-based forms without a `<form>` tag (some SPAs) are not detected
+1. **Div-based forms are heuristic** — the detector only recognizes groups with a clear submit-style button, and only on sites you enable. A form with an unlabeled icon button, or fields spread across far-apart parts of the page, may not be found
 2. **Fingerprint stability** — adding, removing, or reordering fields changes the fingerprint; existing presets won't auto-migrate
 3. **File inputs** — not supported (browser security restriction)
 4. **Shadow DOM** — fields inside closed shadow roots may not be accessible
 5. **Cross-origin iframes** — not scanned (`all_frames: false`)
-6. **Auto-submit** — clicking a preset chip fills the form and clicks the submit button if one exists; forms without a submit button are filled only
-7. **Sensitive data** — stored locally but unencrypted; user is responsible for what they save
+6. **Auto-submit** — a preset marked to submit clicks the form's submit button if one exists; forms without one are filled only
+7. **Encryption** — a forgotten passphrase can't be recovered, and the key stays in memory for the browser session unless you lock it. Field labels and names are not encrypted
 8. **Duplicate forms** — forms with identical structure and index may collide; nearby heading and submit text help differentiate them
+9. **Profile matching is by guess** — unusual field names may not match; check the result before submitting
 
 ## Supported Field Types
 
@@ -147,13 +237,15 @@ Missing fields are skipped gracefully — the extension will not crash.
 - Select dropdowns
 - Checkboxes
 - Radio button groups
+- Date, time, month and color inputs (random test data)
 
 ## Development Notes
 
 - Manifest V3 with plain JavaScript — no build step required
-- Content scripts load in order: `fingerprint.js` → `detector.js` → `autofill.js` → `content.js`
-- Floating UI uses Shadow DOM to avoid CSS conflicts with host pages
-- `MutationObserver` detects dynamically added forms (React, Vue, Next.js, etc.)
+- Content scripts load in order: `site-rules.js` → `field-types.js` → `settings.js` → `profiles.js` → `crypto.js` → `fingerprint.js` → `detector.js` → `autofill.js` → `test-data.js` → `dialogs.js` → `content.js`
+- Floating UI and dialogs use Shadow DOM to avoid CSS conflicts with host pages, and stop key events at the shadow host so typing doesn't trigger a site's shortcuts
+- `MutationObserver` detects dynamically added forms (React, Vue, Next.js, etc.). It only runs where FormPilot is enabled
+- Encryption is requested from content scripts and extension pages by message (`formpilot:crypto:*`); only the extension's own contexts are served
 
 ## License
 

@@ -24,17 +24,46 @@
         </div>
       </section>
 
+      <section class="site-card">
+        <div class="site-row">
+          <div class="site-text">
+            <span class="site-title">Show on this site</span>
+            <span class="site-host" id="site-host">Checking…</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="site-toggle" role="switch" aria-label="Show FormPilot on this site" disabled />
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <p class="site-hint" id="site-hint"></p>
+      </section>
+
+      <section class="site-card">
+        <div class="site-row">
+          <div class="site-text">
+            <span class="site-title">Detect div-based forms</span>
+            <span class="site-host" id="formless-host">Checking…</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="formless-toggle" role="switch" aria-label="Detect forms without a form tag on this site" disabled />
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <p class="site-hint" id="formless-hint"></p>
+      </section>
+
       <p class="privacy">
         All saved data stays locally in your browser. No backend, no analytics, no external tracking.
       </p>
 
       <div class="actions">
-        <button id="open-options" class="btn btn-primary" type="button">Manage saved data</button>
+        <button id="open-options" class="btn btn-primary" type="button">Settings &amp; saved data</button>
         <button id="open-test" class="btn btn-secondary" type="button">Open test page</button>
       </div>
     </main>
 
     <script src="../shared/storage.js"></script>
+    <script src="../shared/site-rules.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

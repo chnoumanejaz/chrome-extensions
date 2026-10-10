@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FormPilot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Save and refill form data locally on any website.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["http://*/*", "https://*/*", "http://localhost/*"],
@@ -26,9 +26,16 @@
     {
       "matches": ["http://*/*", "https://*/*", "http://localhost/*"],
       "js": [
+        "shared/site-rules.js",
+        "shared/field-types.js",
+        "shared/settings.js",
+        "shared/profiles.js",
+        "shared/crypto.js",
         "content/fingerprint.js",
         "content/detector.js",
         "content/autofill.js",
+        "content/test-data.js",
+        "content/dialogs.js",
         "content/content.js"
       ],
       "css": ["content/floating-button.css"],

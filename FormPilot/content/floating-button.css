@@ -307,3 +307,191 @@
   font-size: 12px;
   margin-bottom: 12px;
 }
+
+/* Preset row actions (submit toggle, rename, delete) */
+.formpilot-preset-action {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.formpilot-preset-action:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.formpilot-preset-action-on {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.formpilot-preset-action-on:hover {
+  background: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.formpilot-submit-mark {
+  opacity: 0.85;
+}
+
+/* Panel sections */
+.formpilot-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 2px 0 12px;
+}
+
+.formpilot-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.formpilot-btn-block {
+  width: 100%;
+  padding: 7px 8px;
+}
+
+.formpilot-input,
+.formpilot-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 12px;
+}
+
+.formpilot-input:focus,
+.formpilot-select:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.formpilot-field {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.formpilot-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.formpilot-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+}
+
+.formpilot-check input {
+  margin: 2px 0 0;
+}
+
+.formpilot-hint {
+  margin: 0 0 10px 20px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.formpilot-hint-flush {
+  margin-left: 0;
+}
+
+/* Passphrase dialog */
+.formpilot-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 24, 39, 0.45);
+  pointer-events: auto;
+}
+
+.formpilot-dialog {
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.formpilot-dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.formpilot-dialog-text {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.formpilot-dialog-error {
+  margin: 0;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.formpilot-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.formpilot-dialog-actions .formpilot-btn {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.formpilot-dialog-actions .formpilot-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.formpilot-dialog-error[hidden] {
+  display: none;
+}
+
+/* Keep tall panels inside short viewports */
+.formpilot-panel {
+  max-height: calc(100vh - 44px);
+  overflow-y: auto;
+}
+
+.formpilot-row .formpilot-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

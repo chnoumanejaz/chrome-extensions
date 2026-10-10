@@ -70,11 +70,17 @@ const FormPilotFingerprint = (() => {
     return "";
   }
 
+  /** True for a group of fields found without a <form> tag (see FormPilotDetector.scanFormless). */
+  function isFormlessContainer(form) {
+    return form.tagName !== "FORM";
+  }
+
   function getSubmitButtonText(form) {
-    const submitEl =
-      form.querySelector('button[type="submit"]') ||
-      form.querySelector('input[type="submit"]') ||
-      form.querySelector('[type="submit"]');
+    const submitEl = isFormlessContainer(form)
+      ? FormPilotDetector.findSubmitControl(form, { allowDisabled: true })
+      : form.querySelector('button[type="submit"]') ||
+        form.querySelector('input[type="submit"]') ||
+        form.querySelector('[type="submit"]');
 
     if (!submitEl) return "";
 
@@ -86,6 +92,7 @@ const FormPilotFingerprint = (() => {
   }
 
   function getFormIndex(form) {
+    if (isFormlessContainer(form)) return FormPilotDetector.getFormlessIndex(form);
     const forms = Array.from(document.querySelectorAll("form"));
     return forms.indexOf(form);
   }
@@ -203,6 +210,7 @@ const FormPilotFingerprint = (() => {
     const fields = getUsableFields(form).map((field, index) => buildFieldMetadata(field, index));
 
     return {
+      kind: isFormlessContainer(form) ? "container" : "form",
       origin: window.location.origin,
       pathname: window.location.pathname,
       pageUrl: window.location.href.split("#")[0],
@@ -246,6 +254,9 @@ const FormPilotFingerprint = (() => {
         index: field.index
       }))
     };
+
+    // Only added for formless groups, so fingerprints of real forms never change.
+    if (meta.kind === "container") payload.kind = "container";
 
     return hashString(JSON.stringify(payload));
   }

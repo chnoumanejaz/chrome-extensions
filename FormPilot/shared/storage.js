@@ -27,8 +27,33 @@ const FormPilotStorage = {
     await chrome.storage.local.set({ forms });
   },
 
+  /** Applies `changes` to one preset (name, autoSubmit, fields...) and saves it. */
+  async updatePreset(storageKey, presetId, changes) {
+    const record = await this.getFormRecord(storageKey);
+    const preset = record?.presets?.find((item) => item.id === presetId);
+    if (!preset) return null;
+
+    const now = new Date().toISOString();
+    Object.assign(preset, changes, { updatedAt: now });
+    record.updatedAt = now;
+    await this.saveFormRecord(storageKey, record);
+    return preset;
+  },
+
+  /** Drops every encrypted field from every preset (used when the passphrase is reset). */
+  async removeEncryptedFields() {
+    const forms = await this.getAllForms();
+    for (const record of Object.values(forms)) {
+      for (const preset of record.presets || []) {
+        preset.fields = (preset.fields || []).filter((field) => !field.enc);
+      }
+    }
+    await chrome.storage.local.set({ forms });
+  },
+
+  /** Clears saved presets and profiles. Settings and site rules are kept. */
   async clearAll() {
-    await chrome.storage.local.set({ forms: {} });
+    await chrome.storage.local.set({ forms: {}, profiles: [] });
   },
 
   async getStats() {
